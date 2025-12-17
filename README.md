@@ -33,7 +33,7 @@ Promote to Skill with /calibrate review
 ```
 
 ## Installation
-
+First, add the plugin to your local marketplace, and then install it:
 ```bash
 /plugin marketplace add yhzion/claude-code-calibrator
 /plugin install calibrator@yhzion-claude-code-calibrator
