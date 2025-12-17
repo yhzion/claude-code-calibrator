@@ -1,7 +1,7 @@
 ---
 name: calibrate refactor
 description: Edit existing Skills and merge similar patterns
-allowed-tools: Bash(git:*), Bash(sqlite3:*), Bash(test:*), Bash(sed:*), Bash(printf:*), Bash(echo:*), Bash(awk:*), Bash(cat:*), Bash(rm:*)
+allowed-tools: Bash(git:*), Bash(sqlite3:*), Bash(test:*), Bash(sed:*), Bash(printf:*), Bash(echo:*), Bash(awk:*), Bash(cat:*), Bash(rm:*), Bash(mkdir:*), Bash(tr:*), Bash(cut:*), Bash(date:*)
 ---
 
 # /calibrate refactor
@@ -61,13 +61,13 @@ fi
 ```
 🔧 Calibrator Refactor
 
-Select operation mode:
+What would you like to do?
 
 1. Edit Skill - Modify instruction or situation of existing Skills
 2. Merge patterns - Combine similar patterns (same situation)
 3. Remove duplicates - Delete exact duplicate patterns
 
-Enter mode (1-3): _
+Select mode (1/2/3):
 ```
 
 ## Mode 1: Edit Skill
@@ -94,7 +94,7 @@ Display skills:
 [id=1] Creating React components → Always define TypeScript interface (3 times)
 [id=5] API endpoints → Always include error handling (5 times)
 
-Enter Skill id to edit: _
+Enter Skill id to edit:
 ```
 
 ### Step 1-2: Load Skill Details
@@ -124,19 +124,21 @@ IFS=$'\t' read -r SITUATION INSTRUCTION COUNT SKILL_PATH <<<"$ROW"
 Situation: {situation}
 Instruction: {instruction}
 
-What do you want to edit?
-1. Situation
-2. Instruction
-3. Both
-4. Cancel
+What would you like to edit?
 
-Enter choice (1-4): _
+1. Situation - Change when this rule applies
+2. Instruction - Change what Claude should do
+3. Both - Edit situation and instruction
+4. Cancel - Go back without changes
+
+Select option (1/2/3/4):
 ```
 
 For editing:
 ```
-New situation (or press Enter to keep current): _
-New instruction (or press Enter to keep current): _
+New situation (or press Enter to keep current):
+
+New instruction (or press Enter to keep current):
 ```
 
 ### Step 1-4: Update Database and Skill File
@@ -273,8 +275,9 @@ Display:
 [id=12] Include try-catch blocks (3 times)
 [id=15] Use Promise.all for parallel operations (1 time)
 
-Enter pattern ids to merge (comma-separated): _
-Keep which instruction as primary? Enter pattern id: _
+Enter pattern ids to merge (comma-separated, e.g., 10,12,15):
+
+Keep which instruction as primary? Enter pattern id:
 ```
 
 ### Step 2-2: Merge Patterns
@@ -388,7 +391,7 @@ This indicates a database integrity issue that should be fixed.
 1. {situation} → {instruction} ({count} copies)
 2. {situation} → {instruction} ({count} copies)
 
-Remove duplicates and keep only one copy? [y/N]: _
+Remove duplicates and keep only one copy? (y/N):
 ```
 
 ### Step 3-2: Remove Duplicates

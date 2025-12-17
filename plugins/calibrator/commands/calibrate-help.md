@@ -92,6 +92,7 @@ Commands:
   /calibrate status    View statistics
   /calibrate review    Promote patterns to Skills
   /calibrate refactor  Edit Skills and merge patterns
+  /calibrate auto      Toggle auto pattern detection (on/off)
   /calibrate reset     Delete all data
   /calibrate help      Show this help
 
@@ -101,6 +102,9 @@ Quick Start:
 💡 When Claude's output differs from your expectations, use /calibrate
    to record the mismatch. After 2+ repetitions, promote it to a Skill
    with /calibrate review.
+
+💡 Enable /calibrate auto on to automatically detect patterns from
+   lint, type, build, and test error fixes.
 ```
 
 ## Notes
