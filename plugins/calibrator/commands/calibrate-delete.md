@@ -41,7 +41,8 @@ validate_skill_path() {
   local resolved_path resolved_base
 
   # Resolve to absolute path and check it's under SKILL_OUTPUT_PATH
-  resolved_path=$(cd "$PROJECT_ROOT" && realpath -m "$path" 2>/dev/null || echo "")
+  # realpath -m handles non-existent paths and returns absolute path
+  resolved_path=$(realpath -m "$path" 2>/dev/null || echo "")
   resolved_base=$(realpath -m "$SKILL_OUTPUT_PATH" 2>/dev/null || echo "")
 
   if [ -z "$resolved_path" ] || [ -z "$resolved_base" ]; then
@@ -93,8 +94,14 @@ Example: 1 or 1,5
 Note: The list should be dynamically generated from the SKILLS query result.
 
 Wait for user response:
-- User responds with id(s) (e.g., "1" or "1,5") → Parse and process each SKILL_ID
+- User responds with id(s) (e.g., "1" or "1,5") → Store as DELETE_IDS and proceed to Step 3
 - User responds "skip" or "cancel" → Exit with message: "Deletion cancelled."
+
+```bash
+# Store user input for later use in Step 5
+# DELETE_IDS should contain the user's response (e.g., "1" or "1,5")
+DELETE_IDS="$USER_INPUT"
+```
 
 ### Step 3: Validate and Load Selected Skills
 
@@ -158,6 +165,10 @@ escape_sql() {
   printf '%s' "$1" | sed "s/'/''/g"
 }
 
+# DELETE_IDS: User input from Step 2-B (e.g., "1" or "1,5")
+# This variable should be set from the user's response before this step executes.
+# Example: DELETE_IDS="1,5"
+
 # Input sanitization: remove non-numeric and non-comma characters to prevent IFS injection
 # Using printf instead of echo for safer handling (echo may interpret -n, -e options)
 SANITIZED_IDS=$(printf '%s' "$DELETE_IDS" | tr -cd '0-9,')
@@ -166,6 +177,12 @@ IFS=',' read -ra SKILL_IDS <<< "$SANITIZED_IDS"
 # Track results
 DELETED_COUNT=0
 FAILED_COUNT=0
+
+# N+1 Optimization: Batch fetch all skill info in single query
+# This avoids executing a separate SELECT for each SKILL_ID
+ALL_SKILLS=$(sqlite3 -separator $'\t' "$DB_PATH" \
+  "SELECT id, situation, skill_path FROM patterns WHERE id IN ($SANITIZED_IDS) AND promoted = 1;" \
+  2>/dev/null) || ALL_SKILLS=""
 
 # Process each skill
 for SKILL_ID in "${SKILL_IDS[@]}"; do
@@ -178,10 +195,8 @@ for SKILL_ID in "${SKILL_IDS[@]}"; do
     continue
   fi
 
-  # Get skill info
-  ROW=$(sqlite3 -separator $'\t' "$DB_PATH" \
-    "SELECT situation, skill_path FROM patterns WHERE id = $SKILL_ID AND promoted = 1;" \
-    2>/dev/null) || ROW=""
+  # Get skill info from pre-fetched data (avoids N+1 queries)
+  ROW=$(printf '%s\n' "$ALL_SKILLS" | grep "^${SKILL_ID}"$'\t' | head -1)
 
   if [ -z "$ROW" ]; then
     echo "⚠️ Skill not found or already unpromoted (id=$SKILL_ID)"
@@ -189,7 +204,8 @@ for SKILL_ID in "${SKILL_IDS[@]}"; do
     continue
   fi
 
-  IFS=$'\t' read -r SITUATION SKILL_PATH <<<"$ROW"
+  # Skip the id field (first column) when reading
+  IFS=$'\t' read -r _ID SITUATION SKILL_PATH <<<"$ROW"
 
   # Path traversal protection: ensure SKILL_PATH is under SKILL_OUTPUT_PATH
   if [ -n "$SKILL_PATH" ] && ! validate_skill_path "$SKILL_PATH"; then

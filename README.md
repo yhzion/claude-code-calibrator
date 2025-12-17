@@ -498,6 +498,58 @@ Select mode (1/2/3):
 
 ---
 
+### Delete Skills
+
+```bash
+/calibrate delete
+```
+
+Delete promoted Skills (multi-select support).
+
+<details>
+<summary>📖 Detailed Usage</summary>
+
+**Step 1: View Promoted Skills**
+```
+🗑️ Delete Promoted Skills
+
+Select Skills to delete (pattern data will be preserved, only SKILL.md files will be removed):
+
+[id=1] Creating React components → Always define TypeScript interface (3 times)
+       Path: .claude/skills/creating-react-components
+[id=5] API endpoints → Always include error handling (5 times)
+       Path: .claude/skills/api-endpoints
+
+Enter skill id(s) to delete (comma-separated for multiple, or 'skip' to cancel):
+Example: 1 or 1,5
+```
+
+**Step 2: Confirmation**
+- "Are you sure you want to delete these Skills?"
+- [Yes, delete selected Skills] [Cancel]
+
+**Step 3: Result**
+```
+✅ Skill deletion complete
+
+- Deleted: 2 skill(s)
+- Failed: 0 skill(s)
+
+Pattern data has been preserved. You can re-promote patterns with /calibrate review.
+
+🔄 Restart Claude Code session to apply changes.
+```
+
+**What happens:**
+- SKILL.md file: Deleted
+- Skill directory: Preserved (empty directory remains)
+- Database pattern: Preserved with `promoted = 0`
+- Pattern count: Preserved (can be re-promoted later)
+
+</details>
+
+---
+
 ### Show Help
 
 ```bash
@@ -521,6 +573,7 @@ Commands:
   /calibrate status    View statistics
   /calibrate review    Promote patterns to Skills
   /calibrate refactor  Edit Skills and merge patterns
+  /calibrate delete    Delete promoted Skills
   /calibrate auto      Toggle auto pattern detection (on/off)
   /calibrate reset     Delete all data
   /calibrate help      Show this help

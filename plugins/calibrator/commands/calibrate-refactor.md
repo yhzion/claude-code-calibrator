@@ -23,14 +23,21 @@ PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 DB_PATH="$PROJECT_ROOT/.claude/calibrator/patterns.db"
 SKILL_OUTPUT_PATH="$PROJECT_ROOT/.claude/skills"
 
-# POSIX-compatible version comparison (returns 0 if $1 >= $2)
+# POSIX-compatible version comparison
+# Returns 0 (true/success) if $1 >= $2, 1 (false/failure) otherwise
+# Handles versions with different number of parts (e.g., "3.24" vs "3.24.0")
 version_ge() {
-  printf '%s\n%s' "$2" "$1" | awk -F. '
-    NR==1 { split($0,a,"."); next }
-    NR==2 { split($0,b,".")
-      for(i=1; i<=3; i++) {
-        if((b[i]+0) > (a[i]+0)) exit 0
-        if((b[i]+0) < (a[i]+0)) exit 1
+  printf '%s\n%s' "$1" "$2" | awk -F. '
+    NR==1 { for(i=1; i<=NF; i++) v1[i]=$i+0; n1=NF; next }
+    NR==2 {
+      for(i=1; i<=NF; i++) v2[i]=$i+0
+      n2=NF
+      n = (n1 > n2) ? n1 : n2
+      for(i=1; i<=n; i++) {
+        a = (i <= n1) ? v1[i] : 0
+        b = (i <= n2) ? v2[i] : 0
+        if(a > b) exit 0
+        if(a < b) exit 1
       }
       exit 0
     }'
@@ -67,7 +74,8 @@ validate_skill_path() {
   local resolved_path resolved_base
 
   # Resolve to absolute path and check it's under SKILL_OUTPUT_PATH
-  resolved_path=$(cd "$PROJECT_ROOT" && realpath -m "$path" 2>/dev/null || echo "")
+  # realpath -m handles non-existent paths and returns absolute path
+  resolved_path=$(realpath -m "$path" 2>/dev/null || echo "")
   resolved_base=$(realpath -m "$SKILL_OUTPUT_PATH" 2>/dev/null || echo "")
 
   if [ -z "$resolved_path" ] || [ -z "$resolved_base" ]; then
@@ -364,7 +372,10 @@ for PID in "${PATTERN_IDS[@]}"; do
     IFS=$'\t' read -r PATTERN_SITUATION COUNT <<<"$ROW"
 
     # Validate all patterns have the same situation
-    if [ -n "$EXPECTED_SITUATION" ] && [ "$PATTERN_SITUATION" != "$EXPECTED_SITUATION" ]; then
+    # First non-PRIMARY pattern sets EXPECTED_SITUATION if not already set by PRIMARY
+    if [ -z "$EXPECTED_SITUATION" ]; then
+      EXPECTED_SITUATION="$PATTERN_SITUATION"
+    elif [ "$PATTERN_SITUATION" != "$EXPECTED_SITUATION" ]; then
       echo "❌ Error: Pattern id=$PID has different situation"
       echo "   Expected: $EXPECTED_SITUATION"
       echo "   Found: $PATTERN_SITUATION"
