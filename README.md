@@ -10,19 +10,6 @@ A Claude Code plugin that learns from your corrections and applies them consiste
 
 ## Core Concept
 
-### Manual Recording
-```
-User requests Claude to correct output
-       ↓
-Record mismatch with /calibrate
-       ↓
-Detect when same pattern repeats
-       ↓
-Promote to Skill with /calibrate review
-       ↓
-Claude automatically applies pattern going forward
-```
-
 ### Auto-Detection (Default)
 ```
 Claude fixes lint/type/build/test error
@@ -34,6 +21,19 @@ Same pattern repeats 2+ times
 Claude suggests: "💡 Pattern repeated 2x → /calibrate review"
        ↓
 Promote to Skill with /calibrate review
+```
+
+### Manual Recording
+```
+User requests Claude to correct output
+       ↓
+Record mismatch with /calibrate
+       ↓
+Detect when same pattern repeats
+       ↓
+Promote to Skill with /calibrate review
+       ↓
+Claude automatically applies pattern going forward
 ```
 
 ## Installation
