@@ -22,7 +22,7 @@ export LC_ALL=C.UTF-8 2>/dev/null || export LC_ALL=en_US.UTF-8 2>/dev/null || tr
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 DB_PATH="$PROJECT_ROOT/.claude/calibrator/patterns.db"
 THRESHOLD=2
-SKILL_OUTPUT_PATH="$PROJECT_ROOT/.claude/skills/learned"
+SKILL_OUTPUT_PATH="$PROJECT_ROOT/.claude/skills"
 
 # POSIX-compatible version comparison (returns 0 if $1 >= $2)
 version_ge() {
@@ -220,7 +220,10 @@ sqlite3 "$DB_PATH" "UPDATE patterns SET promoted = 1, skill_path = '$SAFE_SKILL_
 
 - {skill_output_path}/{skill-name}/SKILL.md
 
-Claude will now automatically apply this rule in "{situation}" situations.
+🔄 To activate this Skill, start a new Claude Code session.
+   (Skills are loaded at session start)
+
+Claude will then automatically apply this rule in "{situation}" situations.
 ```
 
 ## Reference: Skill Name Conversion Rules
