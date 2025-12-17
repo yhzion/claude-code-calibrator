@@ -46,7 +46,7 @@ First, add the plugin to your local marketplace, and then install it:
 ```
 
 ### Uninstall
-
+To completely remove the plugin, first uninstall it and then remove it from the marketplace:
 ```bash
 /plugin uninstall calibrator@yhzion-claude-code-calibrator
 /plugin marketplace remove yhzion-claude-code-calibrator
