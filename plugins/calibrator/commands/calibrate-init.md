@@ -58,37 +58,31 @@ test -d "$PROJECT_ROOT/.claude/calibrator" || true
 
 ### Step 2: New Installation - User Confirmation
 
-Use the `AskUserQuestion` tool to ask the user for confirmation and preferences:
+Ask the user for confirmation with a clear message:
 
-**Question 1: Confirmation**
 ```
-header: "Initialize"
-question: "Initialize Calibrator? This will create .claude/calibrator/patterns.db"
-options:
-  - label: "Yes, initialize"
-    description: "Create database and directory structure"
-  - label: "Cancel"
-    description: "Do not initialize"
-```
+⚙️ Calibrator Initialization
 
-If user selects "Cancel", exit with message: "❌ Initialization cancelled."
+This will create:
+- .claude/calibrator/patterns.db (SQLite database)
+- .claude/skills/ directory (for promoted skills)
 
-**Question 2: Auto-Detection Preference**
-```
-header: "Auto-Detect"
-question: "Enable automatic pattern detection?"
-options:
-  - label: "Yes (Recommended)"
-    description: "Automatically record patterns when fixing lint/format/type/build/test errors"
-  - label: "No"
-    description: "Only record patterns manually with /calibrate command"
+Options:
+1. Initialize with auto-detection (recommended)
+   → Automatically records patterns when fixing lint/type/build/test errors
+2. Initialize without auto-detection
+   → Only record patterns manually with /calibrate
+3. Cancel
+
+Which option? (1/2/3):
 ```
 
-Save user's choice:
-- "Yes (Recommended)" → `AUTO_DETECT_ENABLED="yes"`
-- "No" → `AUTO_DETECT_ENABLED="no"`
+Wait for user response:
+- User responds "1" or "yes" or confirms auto-detection → Set `AUTO_DETECT_ENABLED="yes"`
+- User responds "2" or "no" or declines auto-detection → Set `AUTO_DETECT_ENABLED="no"`
+- User responds "3" or "cancel" → Exit with message: "❌ Initialization cancelled."
 
-On confirmation, execute Step 2-A, Step 2-B, and Step 2-C in order.
+On confirmation (option 1 or 2), execute Step 2-A, Step 2-B, and Step 2-C in order.
 
 ### Step 2-A: Create Directories and Database
 ```bash
@@ -112,17 +106,21 @@ fi
 
 # Set secure permissions on DB file
 chmod 600 "$PROJECT_ROOT/.claude/calibrator/patterns.db"  # Owner only: rw
+```
 
-# Create auto-detect flag file based on user preference
-# AUTO_DETECT_ENABLED should be "yes" (default) or "no"
-if [ "${AUTO_DETECT_ENABLED:-yes}" = "yes" ]; then
-  touch "$PROJECT_ROOT/.claude/calibrator/auto-detect.enabled"
-  chmod 600 "$PROJECT_ROOT/.claude/calibrator/auto-detect.enabled"
-  echo "📝 Auto pattern detection enabled"
-else
-  rm -f "$PROJECT_ROOT/.claude/calibrator/auto-detect.enabled"
-  echo "📝 Auto pattern detection disabled"
-fi
+**Then, based on user's choice in Step 2:**
+
+**If user selected Option 1 (auto-detection enabled):**
+```bash
+touch "$PROJECT_ROOT/.claude/calibrator/auto-detect.enabled"
+chmod 600 "$PROJECT_ROOT/.claude/calibrator/auto-detect.enabled"
+echo "📝 Auto pattern detection enabled"
+```
+
+**If user selected Option 2 (auto-detection disabled):**
+```bash
+rm -f "$PROJECT_ROOT/.claude/calibrator/auto-detect.enabled"
+echo "📝 Auto pattern detection disabled"
 ```
 
 ### Step 2-B: Update .gitignore (REQUIRED for Git projects)
@@ -168,20 +166,29 @@ fi
 ```
 
 ### Step 3: When Already Exists
+
+If `.claude/calibrator` directory exists (from Step 1), display:
+
 ```
 ⚠️ Calibrator already exists
 
 Current files:
 - .claude/calibrator/patterns.db
 
-[Keep] [Reinitialize (delete data)]
+Options:
+1. Keep existing data - Exit without changes
+2. Reinitialize - Delete all data and start fresh
+
+Select option (1/2):
 ```
 
-- Keep selected: Exit
-- Reinitialize selected:
+Wait for user response:
+- User responds "1" or "keep" → Exit with message: "Keeping existing installation."
+- User responds "2" or "reinitialize" → Execute cleanup and proceed to Step 2:
 ```bash
 rm -rf "$PROJECT_ROOT/.claude/calibrator"
-# Proceed with new installation (starting from confirmation)
+echo "🗑️ Existing data removed"
+# Then proceed with new installation (Step 2)
 ```
 
 ### Step 4: Completion Message

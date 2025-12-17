@@ -34,9 +34,35 @@ Do NOT record patterns for:
 
 When conditions are met, execute the following steps:
 
-### Step 1: Check Calibrator Initialization and Auto-Detection Setting
+### Step 1: Check Dependencies, Calibrator Initialization and Auto-Detection Setting
 
 ```bash
+# Check sqlite3 dependency (silent exit for background skill)
+if ! command -v sqlite3 &> /dev/null; then
+  # sqlite3 not found, exit silently as this is a background skill.
+  exit 0
+fi
+
+# POSIX-compatible version comparison (returns 0 if $1 >= $2)
+version_ge() {
+  printf '%s\n%s' "$2" "$1" | awk -F. '
+    NR==1 { split($0,a,"."); next }
+    NR==2 { split($0,b,".")
+      for(i=1; i<=3; i++) {
+        if((b[i]+0) > (a[i]+0)) exit 0
+        if((b[i]+0) < (a[i]+0)) exit 1
+      }
+      exit 0
+    }'
+}
+
+SQLITE_VERSION=$(sqlite3 --version 2>/dev/null | awk '{print $1}')
+MIN_SQLITE_VERSION="3.24.0"
+if ! version_ge "${SQLITE_VERSION:-0}" "$MIN_SQLITE_VERSION"; then
+  # SQLite version too old, exit silently.
+  exit 0
+fi
+
 set -euo pipefail
 
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
@@ -76,12 +102,17 @@ Identify and format:
 
 ### Step 4: Record to Database
 
+Replace placeholders with actual values based on the error correction context:
+- `{{CATEGORY}}` → one of: missing, excess, style, other
+- `{{SITUATION}}` → Brief situation description (max 500 chars)
+- `{{EXPECTATION}}` → What was expected (max 1000 chars)
+- `{{INSTRUCTION}}` → Rule to learn (max 2000 chars)
+
 ```bash
 set -euo pipefail
 
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 DB_PATH="$PROJECT_ROOT/.claude/calibrator/patterns.db"
-THRESHOLD=2
 
 # SQL Injection prevention
 escape_sql() {
@@ -94,13 +125,19 @@ SITUATION="{{SITUATION}}"      # Brief situation description
 EXPECTATION="{{EXPECTATION}}"  # What was expected
 INSTRUCTION="{{INSTRUCTION}}"  # Rule to learn
 
+# Validate category
+case "$CATEGORY" in
+  missing|excess|style|other) ;;
+  *) echo "❌ Error: Invalid category '$CATEGORY'"; exit 1 ;;
+esac
+
 SAFE_CATEGORY=$(escape_sql "$CATEGORY")
 SAFE_SITUATION=$(escape_sql "$SITUATION")
 SAFE_EXPECTATION=$(escape_sql "$EXPECTATION")
 SAFE_INSTRUCTION=$(escape_sql "$INSTRUCTION")
 
-# Record using transaction
-sqlite3 "$DB_PATH" <<SQL
+# Record using transaction with error handling
+if ! sqlite3 "$DB_PATH" <<SQL
 BEGIN IMMEDIATE;
 
 INSERT INTO observations (category, situation, expectation)
@@ -113,6 +150,10 @@ DO UPDATE SET count = count + 1, last_seen = CURRENT_TIMESTAMP;
 
 COMMIT;
 SQL
+then
+  echo "⚠️ Auto-calibrate: Failed to record pattern"
+  exit 1
+fi
 
 # Get current pattern count
 COUNT=$(sqlite3 "$DB_PATH" "SELECT count FROM patterns WHERE situation = '$SAFE_SITUATION' AND instruction = '$SAFE_INSTRUCTION';" 2>/dev/null || echo "1")
@@ -122,18 +163,7 @@ echo "COUNT=$COUNT"
 
 ### Step 5: Notify User
 
-After recording, inform the user with a brief message:
-
-```
-📝 Auto-recorded pattern: {brief situation summary}
-   Category: {category} | Occurrences: {count}
-```
-
-If count >= 2, add promotion suggestion:
-
-```
-💡 This pattern has occurred {count} times. Consider promoting to a skill with /calibrate review
-```
+After successful recording, display the notification in the format specified in the Output Format section below.
 
 ## Output Format
 

@@ -57,21 +57,23 @@ Data to delete:
 Note: Generated Skills (.claude/skills/) will be preserved.
 ```
 
-Then use the `AskUserQuestion` tool to confirm:
+Then ask the user for confirmation:
 
 ```
-header: "⚠️ Reset"
-question: "Are you sure you want to delete all Calibrator data? This cannot be undone."
-options:
-  - label: "Yes, reset all data"
-    description: "Delete all observations and patterns permanently"
-  - label: "Cancel"
-    description: "Keep all data and exit"
+⚠️ Are you sure you want to delete all Calibrator data?
+This action cannot be undone.
+
+1. Yes, reset all data - Delete all observations and patterns permanently
+2. Cancel - Keep all data and exit
+
+Confirm (1/2):
 ```
 
 ### Step 4: User Choice Handling
-- "Yes, reset all data" → Proceed to Step 5
-- "Cancel" → Print "Reset cancelled." and exit
+
+Wait for user response:
+- User responds "1" or "yes" → Proceed to Step 5
+- User responds "2" or "cancel" → Print "Reset cancelled." and exit
 
 ### Step 5: Execute Data Deletion
 ```bash

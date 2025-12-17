@@ -63,61 +63,57 @@ fi
 
 ### Step 2: Category Selection
 
-Use the `AskUserQuestion` tool to ask the user to select a category:
+Ask the user to select a category with a clear message:
 
 ```
-header: "Category"
-question: "What kind of mismatch just happened?"
-options:
-  - label: "Something was missing"
-    description: "Expected output was not included"
-  - label: "Something unnecessary"
-    description: "Output included unwanted content"
-  - label: "Different approach"
-    description: "Wanted a different style or method"
-  - label: "Other"
-    description: "Let me explain in detail"
+📝 Recording Pattern Mismatch
+
+What kind of mismatch just happened?
+
+1. Something was missing - Expected output was not included
+2. Something unnecessary - Output included unwanted content
+3. Different approach - Wanted a different style or method
+4. Other - Let me explain in detail
+
+Select category (1/2/3/4):
 ```
 
-Category mapping:
-- "Something was missing" → `CATEGORY="missing"`
-- "Something unnecessary" → `CATEGORY="excess"`
-- "Different approach" → `CATEGORY="style"`
-- "Other" → `CATEGORY="other"`
+Wait for user response and map to category:
+- User responds "1" → `CATEGORY="missing"`
+- User responds "2" → `CATEGORY="excess"`
+- User responds "3" → `CATEGORY="style"`
+- User responds "4" → `CATEGORY="other"`
 
 ### Step 3: Situation and Expectation Input
 
-Use the `AskUserQuestion` tool to collect input (3 separate questions):
+Ask the user three questions sequentially:
 
-**Question 1:**
+**Question 1: Situation**
 ```
-header: "Situation"
-question: "In what situation did this happen? (e.g., 'When creating a model')"
-options:
-  - label: "Let me describe"
-    description: "I'll type the situation"
-```
-→ User provides text input via "Other" option → Save as `SITUATION`
+In what situation did this happen?
+Example: "When creating a model", "When writing API endpoints"
 
-**Question 2:**
+Situation:
 ```
-header: "Expected"
-question: "What did you expect? (e.g., 'Include timestamp field')"
-options:
-  - label: "Let me describe"
-    description: "I'll type what I expected"
-```
-→ User provides text input via "Other" option → Save as `EXPECTATION`
+Wait for user response → Save as `SITUATION`
 
-**Question 3:**
+**Question 2: Expected**
 ```
-header: "Instruction"
-question: "What rule should Claude learn? (imperative form, e.g., 'Always include timestamp fields')"
-options:
-  - label: "Let me describe"
-    description: "I'll type the instruction"
+What did you expect?
+Example: "Include timestamp field", "Use TypeScript interfaces"
+
+Expected:
 ```
-→ User provides text input via "Other" option → Save as `INSTRUCTION`
+Wait for user response → Save as `EXPECTATION`
+
+**Question 3: Instruction**
+```
+What rule should Claude learn? (imperative form)
+Example: "Always include timestamp fields", "Never use var in JavaScript"
+
+Instruction:
+```
+Wait for user response → Save as `INSTRUCTION`
 
 ### Step 4: Input Validation
 ```bash
