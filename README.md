@@ -25,6 +25,19 @@ Claude automatically applies pattern going forward
 /plugin install calibrator@yhzion-claude-code-calibrator
 ```
 
+### Update
+
+```bash
+/plugin marketplace update yhzion-claude-code-calibrator
+```
+
+### Uninstall
+
+```bash
+/plugin uninstall calibrator@yhzion-claude-code-calibrator
+/plugin marketplace remove yhzion-claude-code-calibrator
+```
+
 ## Usage
 
 ### Initialize
@@ -89,7 +102,7 @@ Deletes all observation records and patterns. Generated Skills are preserved.
 
 | File | Purpose |
 |------|---------|
-| `.claude/calibrator/patterns.db` | SQLite DB (observations, patterns tables) |
+| `.claude/calibrator/patterns.db` | SQLite DB (`observations`, `patterns`, `schema_version` tables) |
 | `.claude/skills/learned/*/SKILL.md` | Promoted Skills |
 
 ## Security Considerations
