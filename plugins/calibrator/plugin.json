@@ -7,7 +7,8 @@
     "./commands/calibrate-init.md",
     "./commands/calibrate-review.md",
     "./commands/calibrate-status.md",
-    "./commands/calibrate-reset.md"
+    "./commands/calibrate-reset.md",
+    "./commands/calibrate-help.md"
   ],
   "skills": [],
   "hooks": {},
