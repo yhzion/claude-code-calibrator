@@ -89,7 +89,7 @@ Deletes all observation records and patterns. Generated Skills are preserved.
 
 | File | Purpose |
 |------|---------|
-| `.claude/calibrator/patterns.db` | SQLite DB (observations, patterns tables) |
+| `.claude/calibrator/patterns.db` | SQLite DB (observations, patterns, schema_version tables) |
 | `.claude/skills/learned/*/SKILL.md` | Promoted Skills |
 
 ## Security Considerations
