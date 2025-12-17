@@ -1,7 +1,7 @@
 {
   "name": "calibrator",
   "version": "0.1.0",
-  "description": "LLM Agent 기대 불일치 교정 플러그인",
+  "description": "LLM Agent expectation mismatch correction plugin",
   "commands": [
     "./commands/calibrate.md",
     "./commands/calibrate-init.md",

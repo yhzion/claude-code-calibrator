@@ -62,35 +62,8 @@ Files to create:
 mkdir -p .claude/calibrator
 mkdir -p .claude/skills/learned
 
-# schema.sql 내용으로 DB 생성
-sqlite3 .claude/calibrator/patterns.db << 'EOF'
--- Calibrator SQLite Schema v1.0
-
-CREATE TABLE IF NOT EXISTS observations (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  timestamp   DATETIME DEFAULT CURRENT_TIMESTAMP,
-  category    TEXT NOT NULL,
-  situation   TEXT NOT NULL,
-  expectation TEXT NOT NULL,
-  file_path   TEXT,
-  notes       TEXT
-);
-
-CREATE TABLE IF NOT EXISTS patterns (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  situation   TEXT UNIQUE NOT NULL,
-  instruction TEXT NOT NULL,
-  count       INTEGER DEFAULT 1,
-  first_seen  DATETIME DEFAULT CURRENT_TIMESTAMP,
-  last_seen   DATETIME DEFAULT CURRENT_TIMESTAMP,
-  promoted    BOOLEAN DEFAULT FALSE,
-  skill_path  TEXT
-);
-
-CREATE INDEX IF NOT EXISTS idx_observations_situation ON observations(situation);
-CREATE INDEX IF NOT EXISTS idx_patterns_count ON patterns(count);
-CREATE INDEX IF NOT EXISTS idx_patterns_promoted ON patterns(promoted);
-EOF
+# schema.sql 파일로 DB 생성 (중복 방지)
+sqlite3 .claude/calibrator/patterns.db < plugins/calibrator/schemas/schema.sql
 
 # config.json 생성 (선택된 언어 포함)
 cat > .claude/calibrator/config.json << EOF
@@ -128,8 +101,8 @@ fi
 
 ### Step 2-C: 이미 존재할 때
 ```bash
-# 현재 설정된 언어 확인
-CURRENT_LANG=$(cat .claude/calibrator/config.json | grep '"language"' | sed 's/.*: *"\([^"]*\)".*/\1/')
+# 현재 설정된 언어 확인 (jq 사용으로 안정적인 JSON 파싱)
+CURRENT_LANG=$(jq -r '.language // "en"' .claude/calibrator/config.json)
 ```
 
 선택된 언어로 메시지를 표시합니다. (아래는 영어 예시)

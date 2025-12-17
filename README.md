@@ -112,6 +112,7 @@ Language can be selected during `/calibrate init` or changed later by re-running
 
 - Claude Code
 - sqlite3 CLI (pre-installed on macOS/Linux)
+- jq (JSON processor) - Install via `brew install jq` on macOS or `apt install jq` on Linux
 
 ## License
 

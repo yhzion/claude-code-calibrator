@@ -5,7 +5,7 @@
     "email": ""
   },
   "metadata": {
-    "description": "LLM Agent 기대 불일치 교정 플러그인. 반복되는 출력 불일치를 기록하고 Skill로 자동 승격합니다.",
+    "description": "LLM Agent expectation mismatch correction plugin. Records recurring output mismatches and auto-promotes them to Skills.",
     "version": "0.1.0",
     "repository": "https://github.com/yhzion/claude-code-calibrator"
   },
@@ -14,7 +14,7 @@
       "name": "calibrator",
       "version": "0.1.0",
       "source": "./plugins/calibrator",
-      "description": "LLM 기대 불일치 교정 - 패턴 기록 및 Skill 승격",
+      "description": "LLM expectation mismatch correction - Pattern recording and Skill promotion",
       "category": "productivity",
       "tags": ["learning", "calibration", "skills", "pattern"]
     }

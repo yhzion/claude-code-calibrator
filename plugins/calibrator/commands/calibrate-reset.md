@@ -13,7 +13,8 @@ description: Calibrator 데이터 초기화 (위험)
 실행 시 `.claude/calibrator/config.json`의 `language` 필드를 읽어 해당 언어 메시지를 사용합니다.
 
 ```bash
-LANG=$(cat .claude/calibrator/config.json 2>/dev/null | grep '"language"' | sed 's/.*: *"\([^"]*\)".*/\1/')
+# jq 사용으로 안정적인 JSON 파싱
+LANG=$(jq -r '.language // "en"' .claude/calibrator/config.json 2>/dev/null)
 LANG=${LANG:-en}  # 기본값: 영어
 ```
 
@@ -60,33 +61,8 @@ Really reset? Type "reset" to confirm: _
 # 기존 DB 삭제
 rm .claude/calibrator/patterns.db
 
-# 새 DB 생성 (스키마 적용)
-sqlite3 .claude/calibrator/patterns.db << 'EOF'
-CREATE TABLE IF NOT EXISTS observations (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  timestamp   DATETIME DEFAULT CURRENT_TIMESTAMP,
-  category    TEXT NOT NULL,
-  situation   TEXT NOT NULL,
-  expectation TEXT NOT NULL,
-  file_path   TEXT,
-  notes       TEXT
-);
-
-CREATE TABLE IF NOT EXISTS patterns (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  situation   TEXT UNIQUE NOT NULL,
-  instruction TEXT NOT NULL,
-  count       INTEGER DEFAULT 1,
-  first_seen  DATETIME DEFAULT CURRENT_TIMESTAMP,
-  last_seen   DATETIME DEFAULT CURRENT_TIMESTAMP,
-  promoted    BOOLEAN DEFAULT FALSE,
-  skill_path  TEXT
-);
-
-CREATE INDEX IF NOT EXISTS idx_observations_situation ON observations(situation);
-CREATE INDEX IF NOT EXISTS idx_patterns_count ON patterns(count);
-CREATE INDEX IF NOT EXISTS idx_patterns_promoted ON patterns(promoted);
-EOF
+# 새 DB 생성 (schema.sql 파일 사용으로 중복 방지)
+sqlite3 .claude/calibrator/patterns.db < plugins/calibrator/schemas/schema.sql
 ```
 
 ### Step 5: 완료 메시지

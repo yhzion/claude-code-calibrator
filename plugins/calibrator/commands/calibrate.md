@@ -13,7 +13,8 @@ Claude가 기대와 다르게 생성했을 때 패턴을 기록합니다.
 실행 시 `.claude/calibrator/config.json`의 `language` 필드를 읽어 해당 언어 메시지를 사용합니다.
 
 ```bash
-LANG=$(cat .claude/calibrator/config.json 2>/dev/null | grep '"language"' | sed 's/.*: *"\([^"]*\)".*/\1/')
+# jq 사용으로 안정적인 JSON 파싱
+LANG=$(jq -r '.language // "en"' .claude/calibrator/config.json 2>/dev/null)
 LANG=${LANG:-en}  # 기본값: 영어
 ```
 
