@@ -1,5 +1,9 @@
 # Claude Code Calibrator
 
+![macOS: compatible](https://img.shields.io/badge/macOS-compatible-brightgreen?style=for-the-badge&logo=apple&logoColor=white)
+![Linux: compatible](https://img.shields.io/badge/Linux-compatible-brightgreen?style=for-the-badge&logo=linux&logoColor=white)
+![Windows: coming soon](https://img.shields.io/badge/Windows-coming%20soon-yellow?style=for-the-badge&logo=windows&logoColor=white)
+
 Teach Claude once, apply automatically.
 
 A Claude Code plugin that learns from your corrections and applies them consistently.
