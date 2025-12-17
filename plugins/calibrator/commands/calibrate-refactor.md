@@ -301,13 +301,15 @@ Keep which instruction as primary? Enter pattern id:
 ### Step 2-2: Merge Patterns
 ```bash
 # Input sanitization: remove non-numeric and non-comma characters to prevent IFS injection
-SANITIZED_IDS=$(echo "$MERGE_IDS" | tr -cd '0-9,')
+# Using printf instead of echo for safer handling (echo may interpret -n, -e options)
+SANITIZED_IDS=$(printf '%s' "$MERGE_IDS" | tr -cd '0-9,')
 
 # Validate all pattern ids
 IFS=',' read -ra PATTERN_IDS <<< "$SANITIZED_IDS"
 
 # Validate array length (minimum 2 patterns required for merge)
-if [ ${#PATTERN_IDS[@]} -lt 2 ]; then
+# Also handle empty array case explicitly
+if [ -z "${PATTERN_IDS[*]}" ] || [ ${#PATTERN_IDS[@]} -lt 2 ]; then
   echo "❌ Error: At least 2 patterns are required for merge"
   exit 1
 fi

@@ -159,7 +159,8 @@ escape_sql() {
 }
 
 # Input sanitization: remove non-numeric and non-comma characters to prevent IFS injection
-SANITIZED_IDS=$(echo "$DELETE_IDS" | tr -cd '0-9,')
+# Using printf instead of echo for safer handling (echo may interpret -n, -e options)
+SANITIZED_IDS=$(printf '%s' "$DELETE_IDS" | tr -cd '0-9,')
 IFS=',' read -ra SKILL_IDS <<< "$SANITIZED_IDS"
 
 # Track results
