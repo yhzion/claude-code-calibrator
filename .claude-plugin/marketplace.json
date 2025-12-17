@@ -1,0 +1,22 @@
+{
+  "name": "yhzion-claude-code-calibrator",
+  "owner": {
+    "name": "yhzion",
+    "email": "yhzion@gmail.com"
+  },
+  "metadata": {
+    "description": "Claude Code expectation mismatch correction plugin. Records recurring output mismatches and auto-promotes them to Skills.",
+    "version": "0.1.0",
+    "repository": "https://github.com/yhzion/claude-code-calibrator"
+  },
+  "plugins": [
+    {
+      "name": "calibrator",
+      "version": "0.1.0",
+      "source": "./plugins/calibrator",
+      "description": "Claude Code expectation mismatch correction - Pattern recording and Skill promotion",
+      "category": "productivity",
+      "tags": ["learning", "calibration", "skills", "pattern"]
+    }
+  ]
+}

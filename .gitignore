@@ -1,0 +1,32 @@
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Claude Code runtime data (user-specific)
+.claude/calibrator/
+.claude/skills/learned/
+
+# SQLite journal files
+.claude/calibrator/*.db-journal
+.claude/calibrator/*.db-wal
+.claude/calibrator/*.db-shm
+
+# Logs
+*.log
+npm-debug.log*
+
+# Temporary files
+*.tmp
+*.temp

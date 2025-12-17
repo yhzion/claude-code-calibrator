@@ -1,0 +1,15 @@
+{
+  "name": "calibrator",
+  "version": "0.1.0",
+  "description": "Claude Code expectation mismatch correction plugin",
+  "commands": [
+    "./commands/calibrate.md",
+    "./commands/calibrate-init.md",
+    "./commands/calibrate-review.md",
+    "./commands/calibrate-status.md",
+    "./commands/calibrate-reset.md"
+  ],
+  "skills": [],
+  "hooks": {},
+  "mcpServers": {}
+}
