@@ -9,11 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Multi-language support (i18n) for all user-facing messages
-  - English (default), Korean, Japanese, Chinese
-  - Language selection during `/calibrate init`
-  - Language preference stored in `config.json`
-  - Option to change language for existing installations
+- Stricter SQLite schema constraints (category enum, length limits) and performance indexes
+
+### Changed
+
+- `.gitignore` SQLite journal ignores are now scoped to `.claude/calibrator/`
+
+### Removed
+
+- Locale/i18n support (English-only for now to reduce error surface)
+- `config.json`/`jq` dependency (defaults are now fixed to reduce runtime variability)
 
 ## [0.1.0] - 2024-12-17
 

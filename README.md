@@ -33,15 +33,8 @@ Claude automatically applies pattern going forward
 /calibrate init
 ```
 
-During initialization, you'll be prompted to select your preferred language:
-- English (default)
-- Korean (한국어)
-- Japanese (日本語)
-- Chinese (中文)
-
 Creates:
 - `.claude/calibrator/patterns.db`
-- `.claude/calibrator/config.json`
 - `.claude/skills/learned/` directory
 
 ### Record Mismatches
@@ -97,29 +90,7 @@ Deletes all observation records and patterns. Generated Skills are preserved.
 | File | Purpose |
 |------|---------|
 | `.claude/calibrator/patterns.db` | SQLite DB (observations, patterns tables) |
-| `.claude/calibrator/config.json` | Configuration file (language, threshold, etc.) |
 | `.claude/skills/learned/*/SKILL.md` | Promoted Skills |
-
-## Supported Languages
-
-All user-facing messages support multiple languages:
-- `en` - English (default)
-- `ko` - Korean
-- `ja` - Japanese
-- `zh` - Chinese
-
-Language can be selected during `/calibrate init` or changed later by re-running init.
-
-## Configuration
-
-The `config.json` file supports the following options:
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `language` | string | `"en"` | UI language (en, ko, ja, zh) |
-| `threshold` | number | `2` | Minimum repetitions for promotion eligibility |
-| `db_path` | string | `".claude/calibrator/patterns.db"` | Database file location |
-| `skill_output_path` | string | `".claude/skills/learned"` | Directory for generated Skills |
 
 ## Security Considerations
 
@@ -145,15 +116,6 @@ The `config.json` file supports the following options:
 - macOS/Linux: sqlite3 is typically pre-installed
 - Windows: Install from https://sqlite.org/download.html
 
-**"jq is required but not installed"**
-- macOS: `brew install jq`
-- Ubuntu/Debian: `apt install jq`
-- Windows: Download from https://stedolan.github.io/jq/download/
-
-**"config.json is missing required fields"**
-- Re-run `/calibrate init` to regenerate the config file
-- Or manually add missing fields: `language`, `threshold`, `skill_output_path`, `db_path`
-
 **Skills not being applied**
 - Ensure the skill was properly promoted (check `/calibrate status`)
 - Verify the skill file exists in `.claude/skills/learned/`
@@ -162,7 +124,6 @@ The `config.json` file supports the following options:
 
 - Claude Code
 - sqlite3 CLI (pre-installed on macOS/Linux)
-- jq (JSON processor) - Install via `brew install jq` on macOS or `apt install jq` on Linux
 - SQLite version 3.24.0+ (for UPSERT support)
 
 ## License

@@ -1,101 +1,47 @@
 ---
 name: calibrate review
 description: Review accumulated patterns and promote to Skills
+allowed-tools: Bash(sqlite3:*), Bash(test:*), Bash(mkdir:*), Bash(sed:*), Bash(printf:*), Bash(tr:*), Bash(cut:*), Bash(date:*), Bash(echo:*)
 ---
 
 # /calibrate review
 
 Review repeated patterns and promote them to Skills.
 
-## i18n Message Reference
-
-All user-facing messages reference `plugins/calibrator/i18n/messages.json`.
-At runtime, reads the `language` field from `.claude/calibrator/config.json` to use appropriate language messages.
-
-```bash
-# Bash strict mode for safer script execution
-set -euo pipefail
-IFS=$'\n\t'
-
-# Config file path
-CONFIG_FILE=".claude/calibrator/config.json"
-
-# Config validation and reading with explicit error handling
-read_config() {
-  if [ ! -f "$CONFIG_FILE" ]; then
-    echo "⚠️ Warning: config.json not found. Using defaults." >&2
-    return 1
-  fi
-
-  # Validate JSON syntax
-  if ! jq empty "$CONFIG_FILE" 2>/dev/null; then
-    echo "⚠️ Warning: config.json is invalid JSON. Using defaults." >&2
-    return 1
-  fi
-
-  return 0
-}
-
-# Read config with validation
-if read_config; then
-  LANG=$(jq -r '.language // "en"' "$CONFIG_FILE")
-  # Validate language value
-  case "$LANG" in
-    en|ko|ja|zh) ;;
-    *) echo "⚠️ Warning: Invalid language '$LANG'. Using 'en'." >&2; LANG="en" ;;
-  esac
-
-  # Read and validate threshold (must be positive integer)
-  THRESHOLD=$(jq -r '.threshold // 2' "$CONFIG_FILE")
-  if ! [[ "$THRESHOLD" =~ ^[1-9][0-9]*$ ]]; then
-    echo "⚠️ Warning: Invalid threshold '$THRESHOLD'. Using '2'." >&2
-    THRESHOLD=2
-  fi
-
-  # Read database path
-  DB_PATH=$(jq -r '.db_path // ".claude/calibrator/patterns.db"' "$CONFIG_FILE")
-else
-  LANG="en"
-  THRESHOLD=2
-  DB_PATH=".claude/calibrator/patterns.db"
-fi
-```
-
-## Pre-execution Check
+## Pre-execution Setup
 
 ### Step 0: Dependency and DB Check
 ```bash
-# Check required dependencies
+set -euo pipefail
+IFS=$'\n\t'
+
+DB_PATH=".claude/calibrator/patterns.db"
+THRESHOLD=2
+SKILL_OUTPUT_PATH=".claude/skills/learned"
+
 if ! command -v sqlite3 &> /dev/null; then
   echo "❌ Error: sqlite3 is required but not installed."
   exit 1
 fi
 
-# Check DB exists
 if [ ! -f "$DB_PATH" ]; then
-  # i18n key `calibrate.run_init_first` message
+  echo "❌ Calibrator is not initialized. Run /calibrate init first."
   exit 1
 fi
 ```
 
 ## Flow
 
-### Step 1: Query Promotion Candidates (with error handling)
+### Step 1: Query Promotion Candidates
 ```bash
-# Query execution (with error handling) - uses configurable threshold
-CANDIDATES=$(sqlite3 "$DB_PATH" "SELECT id, situation, instruction, count FROM patterns WHERE count >= $THRESHOLD AND promoted = FALSE ORDER BY count DESC LIMIT 100;" 2>/dev/null)
-if [ $? -ne 0 ]; then
-  echo "❌ Error: Failed to query database"
-  exit 1
-fi
+# Query patterns meeting threshold that haven't been promoted.
+# Columns: id, situation, instruction, count, first_seen, last_seen
+CANDIDATES=$(sqlite3 -separator $'\t' "$DB_PATH" \
+  "SELECT id, situation, instruction, count, first_seen, last_seen FROM patterns WHERE count >= $THRESHOLD AND promoted = 0 ORDER BY count DESC LIMIT 100;" \
+  2>/dev/null) || CANDIDATES=""
 ```
 
 ### Step 2-A: No Candidates
-i18n key reference:
-- `review.no_patterns_title` - Title
-- `review.no_patterns_desc` - Description
-
-English example:
 ```
 📊 No patterns available for promotion
 
@@ -104,30 +50,37 @@ Keep recording with /calibrate.
 ```
 
 ### Step 2-B: Candidates Found
-i18n key reference:
-- `review.promotion_title` - Title
-- `review.promotion_select` - Selection prompt
-
-English example:
 ```
 📊 Skill Promotion Candidates (2+ repetitions)
 
-[1] Model creation → include timestamp (3 times)
-[2] API endpoint → error handling (2 times)
-[3] Component creation → Props type definition (2 times)
+[id=12] Model creation → Always include timestamp fields (3 times)
+[id=15] API endpoint → Always include error handling (2 times)
 
-Select number(s) to promote (comma-separated for multiple): _
+Enter pattern id(s) to promote (comma-separated for multiple): _
 ```
 
-### Step 3: Skill Preview
-i18n key reference:
-- `review.preview_title` - Preview title
-- `review.skill_learned_from` - learned_from metadata (placeholders: {count}, {first_seen}, {last_seen})
-- `review.skill_section_rules` - Rules section header
-- `review.skill_section_applies` - Applies to section header
-- `review.save` / `review.edit` / `review.skip` - Buttons
+### Step 3: Load Pattern Details
+For each selected `PATTERN_ID`:
+```bash
+# Validate id defensively
+if ! [[ "$PATTERN_ID" =~ ^[0-9]+$ ]]; then
+  echo "❌ Error: Invalid pattern id '$PATTERN_ID'"
+  exit 1
+fi
 
-For each selected pattern (English example):
+ROW=$(sqlite3 -separator $'\t' "$DB_PATH" \
+  "SELECT situation, instruction, count, first_seen, last_seen FROM patterns WHERE id = $PATTERN_ID AND promoted = 0;" \
+  2>/dev/null) || ROW=""
+
+if [ -z "$ROW" ]; then
+  echo "❌ Error: Pattern not found or already promoted (id=$PATTERN_ID)"
+  exit 1
+fi
+
+IFS=$'\t' read -r SITUATION INSTRUCTION COUNT FIRST_SEEN LAST_SEEN <<<"$ROW"
+```
+
+### Step 4: Skill Preview
 ```
 📝 Skill Preview: {situation}
 
@@ -157,38 +110,34 @@ This Skill was auto-generated by Calibrator.
 [Save] [Edit] [Skip]
 ```
 
-### Step 4: Skill Creation
+### Step 5: Skill Creation
 On save selection:
 ```bash
 # Generate Skill name (kebab-case) - Path Traversal prevention
-SKILL_NAME=$(printf '%s' "$SITUATION" | tr ' ' '-' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9가-힣-]//g')
-# Length limit (max 50 characters)
+SKILL_NAME=$(printf '%s' "$SITUATION" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | sed 's/[^a-z0-9-]//g')
 SKILL_NAME=$(printf '%s' "$SKILL_NAME" | cut -c1-50)
-# Generate timestamp-based name if empty
 if [ -z "$SKILL_NAME" ] || [ "$SKILL_NAME" = "-" ]; then
   SKILL_NAME="skill-$(date +%Y%m%d-%H%M%S)"
 fi
 
-# Handle skill name collisions by appending suffix (with max retries)
+# Handle skill name collisions by appending a numeric suffix (max 100)
 BASE_SKILL_NAME="$SKILL_NAME"
 SUFFIX=1
-MAX_RETRIES=100
-while [ -d ".claude/skills/learned/$SKILL_NAME" ] && [ $SUFFIX -le $MAX_RETRIES ]; do
+while [ -d "$SKILL_OUTPUT_PATH/$SKILL_NAME" ] && [ $SUFFIX -le 100 ]; do
   SKILL_NAME="${BASE_SKILL_NAME}-${SUFFIX}"
   SUFFIX=$((SUFFIX + 1))
 done
-
-if [ $SUFFIX -gt $MAX_RETRIES ]; then
-  echo "❌ Error: Failed to generate unique skill name after $MAX_RETRIES attempts"
+if [ -d "$SKILL_OUTPUT_PATH/$SKILL_NAME" ]; then
+  echo "❌ Error: Failed to generate unique skill name"
   exit 1
 fi
 
 # Create Skill directory
-mkdir -p ".claude/skills/learned/$SKILL_NAME"
+mkdir -p "$SKILL_OUTPUT_PATH/$SKILL_NAME"
 
-# Escape variables for sed substitution (special characters: &, \, /)
+# Escape variables for sed substitution (special characters: \, &, |)
 escape_sed() {
-  printf '%s' "$1" | sed -e 's/[&/\]/\\&/g'
+  printf '%s' "$1" | sed -e 's/[\\&|]/\\&/g'
 }
 SAFE_SKILL_NAME=$(escape_sed "$SKILL_NAME")
 SAFE_INSTRUCTION=$(escape_sed "$INSTRUCTION")
@@ -201,31 +150,24 @@ sed -e "s|{{SKILL_NAME}}|$SAFE_SKILL_NAME|g" \
     -e "s|{{COUNT}}|$COUNT|g" \
     -e "s|{{FIRST_SEEN}}|$FIRST_SEEN|g" \
     -e "s|{{LAST_SEEN}}|$LAST_SEEN|g" \
-    plugins/calibrator/templates/skill-template.md > ".claude/skills/learned/$SKILL_NAME/SKILL.md"
+    plugins/calibrator/templates/skill-template.md > "$SKILL_OUTPUT_PATH/$SKILL_NAME/SKILL.md"
 
 # SQL Injection prevention: single quote escaping
-SAFE_SKILL_PATH=$(printf '%s' ".claude/skills/learned/$SKILL_NAME" | sed "s/'/''/g")
-# Update patterns table
-sqlite3 "$DB_PATH" "UPDATE patterns SET promoted = TRUE, skill_path = '$SAFE_SKILL_PATH' WHERE id = {id};"
+SAFE_SKILL_PATH=$(printf '%s' "$SKILL_OUTPUT_PATH/$SKILL_NAME" | sed "s/'/''/g")
+sqlite3 "$DB_PATH" "UPDATE patterns SET promoted = 1, skill_path = '$SAFE_SKILL_PATH' WHERE id = $PATTERN_ID;"
 ```
 
-### Step 5: Completion
-i18n key reference:
-- `review.complete_title` - Completion title
-- `review.complete_desc` - Completion description (placeholder: {situation})
-
-English example:
+### Step 6: Completion
 ```
 ✅ Skill created
 
-- .claude/skills/learned/{skill-name}/SKILL.md
+- {skill_output_path}/{skill-name}/SKILL.md
 
 Claude will now automatically apply this rule in "{situation}" situations.
 ```
 
 ## Reference: Skill Name Conversion Rules
 
-Convert situation to kebab-case:
 - Space → hyphen
 - Uppercase → lowercase
 - Remove special characters

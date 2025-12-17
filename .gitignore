@@ -19,9 +19,9 @@ Thumbs.db
 .claude/skills/learned/
 
 # SQLite journal files
-*.db-journal
-*.db-wal
-*.db-shm
+.claude/calibrator/*.db-journal
+.claude/calibrator/*.db-wal
+.claude/calibrator/*.db-shm
 
 # Logs
 *.log

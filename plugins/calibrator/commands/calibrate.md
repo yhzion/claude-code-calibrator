@@ -1,92 +1,41 @@
 ---
 name: calibrate
 description: Record LLM expectation mismatches. Guide to initialize if not initialized.
+allowed-tools: Bash(sqlite3:*), Bash(test:*), Bash(sed:*), Bash(printf:*), Bash(echo:*)
 ---
 
 # /calibrate
 
 Record patterns when Claude generates something different from expectations.
 
-## i18n Message Reference
+## Notes
 
-All user-facing messages reference `plugins/calibrator/i18n/messages.json`.
-At runtime, reads the `language` field from `.claude/calibrator/config.json` to use appropriate language messages.
+This command is English-only (no locale/i18n).
 
+## Pre-execution Setup
+
+### Step 0: Dependency and DB Check
 ```bash
-# Bash strict mode for safer script execution
 set -euo pipefail
 IFS=$'\n\t'
 
-# Config file path
-CONFIG_FILE=".claude/calibrator/config.json"
+DB_PATH=".claude/calibrator/patterns.db"
+THRESHOLD=2
 
-# Config validation and reading with explicit error handling
-read_config() {
-  if [ ! -f "$CONFIG_FILE" ]; then
-    echo "⚠️ Warning: config.json not found. Using defaults." >&2
-    return 1
-  fi
-
-  # Validate JSON syntax
-  if ! jq empty "$CONFIG_FILE" 2>/dev/null; then
-    echo "⚠️ Warning: config.json is invalid JSON. Using defaults." >&2
-    return 1
-  fi
-
-  return 0
-}
-
-# Read config with validation
-if read_config; then
-  LANG=$(jq -r '.language // "en"' "$CONFIG_FILE")
-  # Validate language value
-  case "$LANG" in
-    en|ko|ja|zh) ;;
-    *) echo "⚠️ Warning: Invalid language '$LANG'. Using 'en'." >&2; LANG="en" ;;
-  esac
-else
-  LANG="en"
-fi
-```
-
-## Pre-execution Check
-
-### Step 0: Dependency Check
-```bash
-# Check required dependencies
 if ! command -v sqlite3 &> /dev/null; then
   echo "❌ Error: sqlite3 is required but not installed."
   exit 1
 fi
+
+if [ ! -f "$DB_PATH" ]; then
+  echo "❌ Calibrator is not initialized. Run /calibrate init first."
+  exit 1
+fi
 ```
-
-1. Check if `.claude/calibrator/patterns.db` exists:
-   ```bash
-   # Read database path from config (uses read_config from above)
-   if read_config; then
-     DB_PATH=$(jq -r '.db_path // ".claude/calibrator/patterns.db"' "$CONFIG_FILE")
-   else
-     DB_PATH=".claude/calibrator/patterns.db"
-   fi
-
-   test -f "$DB_PATH"
-   ```
-
-2. If file doesn't exist:
-   - i18n key: `calibrate.not_initialized` - Ask user if they want to initialize
-   - Y selected: Run `/calibrate init` then continue
-   - n selected: i18n key: `calibrate.run_init_first` message then exit
 
 ## Recording Flow
 
-### Step 1: Category Selection
-i18n key reference:
-- `calibrate.category_prompt` - Question
-- `calibrate.category_missing` - Option 1
-- `calibrate.category_excess` - Option 2
-- `calibrate.category_style` - Option 3
-- `calibrate.category_other` - Option 4
-
+### Step 2: Category Selection
 English example:
 ```
 What kind of mismatch just happened?
@@ -103,13 +52,7 @@ Category mapping:
 - 3 → `style`
 - 4 → `other`
 
-### Step 2: Situation and Expectation Input
-i18n key reference:
-- `calibrate.situation_prompt` - Question
-- `calibrate.situation_example` - Example
-- `calibrate.situation_label` - Situation label
-- `calibrate.expectation_label` - Expectation label
-
+### Step 3: Situation and Expectation Input
 English example:
 ```
 In what situation, and what did you expect?
@@ -117,9 +60,35 @@ Example: "When creating a model, include timestamp field"
 
 Situation: [user input]
 Expected: [user input]
+Instruction (imperative rule to learn): [user input]
 ```
 
-### Step 3: Database Recording
+### Step 4: Input Validation
+```bash
+# Validate category defensively
+case "$CATEGORY" in
+  missing|excess|style|other) ;;
+  *) echo "❌ Error: Invalid category '$CATEGORY'"; exit 1 ;;
+esac
+
+# Basic length checks (match DB CHECK constraints)
+if [ ${#SITUATION} -eq 0 ] || [ ${#SITUATION} -gt 500 ]; then
+  echo "❌ Error: Situation must be 1-500 characters."
+  exit 1
+fi
+
+if [ ${#EXPECTATION} -eq 0 ] || [ ${#EXPECTATION} -gt 1000 ]; then
+  echo "❌ Error: Expected must be 1-1000 characters."
+  exit 1
+fi
+
+if [ ${#INSTRUCTION} -eq 0 ] || [ ${#INSTRUCTION} -gt 2000 ]; then
+  echo "❌ Error: Instruction must be 1-2000 characters."
+  exit 1
+fi
+```
+
+### Step 5: Database Recording
 
 **Input Escaping** (SQL Injection Prevention):
 ```bash
@@ -130,59 +99,49 @@ SAFE_EXPECTATION=$(printf '%s' "$EXPECTATION" | sed "s/'/''/g")
 SAFE_INSTRUCTION=$(printf '%s' "$INSTRUCTION" | sed "s/'/''/g")
 ```
 
-1. Record to both tables using transaction (prevents race conditions):
-   ```bash
-   # Use BEGIN IMMEDIATE for write lock, ensuring atomic operation
-   sqlite3 "$DB_PATH" <<SQL
-   BEGIN IMMEDIATE;
+Record to both tables using transaction (prevents race conditions):
+```bash
+# Use BEGIN IMMEDIATE for write lock, ensuring atomic operation
+sqlite3 "$DB_PATH" <<SQL
+BEGIN IMMEDIATE;
 
-   -- Record observation
-   INSERT INTO observations (category, situation, expectation)
-   VALUES ('$SAFE_CATEGORY', '$SAFE_SITUATION', '$SAFE_EXPECTATION');
+-- Record observation
+INSERT INTO observations (category, situation, expectation)
+VALUES ('$SAFE_CATEGORY', '$SAFE_SITUATION', '$SAFE_EXPECTATION');
 
-   -- Upsert pattern (composite unique: situation + instruction)
-   INSERT INTO patterns (situation, instruction, count)
-   VALUES ('$SAFE_SITUATION', '$SAFE_INSTRUCTION', 1)
-   ON CONFLICT(situation, instruction)
-   DO UPDATE SET count = count + 1, last_seen = CURRENT_TIMESTAMP;
+-- Upsert pattern (composite unique: situation + instruction)
+INSERT INTO patterns (situation, instruction, count)
+VALUES ('$SAFE_SITUATION', '$SAFE_INSTRUCTION', 1)
+ON CONFLICT(situation, instruction)
+DO UPDATE SET count = count + 1, last_seen = CURRENT_TIMESTAMP;
 
-   COMMIT;
-   SQL
+COMMIT;
+SQL
 
-   if [ $? -ne 0 ]; then
-     echo "❌ Error: Failed to record pattern"
-     exit 1
-   fi
-   ```
+if [ $? -ne 0 ]; then
+  echo "❌ Error: Failed to record pattern"
+  exit 1
+fi
+```
 
-   Instruction generation rules:
-   - Convert expectation to imperative form
-   - Example: "include timestamp field" → "Always include timestamp field"
+Get current pattern count:
+```bash
+COUNT=$(sqlite3 "$DB_PATH" "SELECT count FROM patterns WHERE situation = '$SAFE_SITUATION' AND instruction = '$SAFE_INSTRUCTION';" 2>/dev/null || echo "1")
+```
 
-2. Get current pattern count:
-   ```bash
-   COUNT=$(sqlite3 "$DB_PATH" "SELECT count FROM patterns WHERE situation = '$SAFE_SITUATION' AND instruction = '$SAFE_INSTRUCTION';")
-   ```
-
-### Step 4: Output Result
-i18n key reference:
-- `calibrate.record_complete` - Completion title
-- `calibrate.situation_label` - Situation label
-- `calibrate.expectation_label` - Expectation label
-- `calibrate.pattern_count` - Pattern accumulation count (placeholder: {count})
-- `calibrate.promotion_hint` - Promotion hint
-
+### Step 6: Output Result
 English example:
 ```
 ✅ Record complete
 
 Situation: {situation}
 Expected: {expectation}
+Instruction: {instruction}
 
 Same pattern accumulated {count} times
 ```
 
-If count is 2 or more, add:
+If count is >= 2, add:
 ```
 💡 You can promote this to a Skill with /calibrate review.
 ```
