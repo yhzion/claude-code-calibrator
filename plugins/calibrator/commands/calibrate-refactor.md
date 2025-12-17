@@ -1,7 +1,7 @@
 ---
 name: calibrate refactor
 description: Edit existing Skills and merge similar patterns
-allowed-tools: Bash(git:*), Bash(sqlite3:*), Bash(test:*), Bash(sed:*), Bash(printf:*), Bash(echo:*), Bash(awk:*), Bash(cat:*), Bash(rm:*), Bash(mkdir:*), Bash(tr:*), Bash(cut:*), Bash(date:*)
+allowed-tools: Bash(git:*), Bash(sqlite3:*), Bash(test:*), Bash(sed:*), Bash(printf:*), Bash(echo:*), Bash(awk:*)
 ---
 
 # /calibrate refactor
