@@ -52,140 +52,6 @@ To completely remove the plugin, first uninstall it and then remove it from the 
 /plugin marketplace remove yhzion-claude-code-calibrator
 ```
 
-## Example: Teaching Claude Your Preferences
-
-Let's walk through a real scenario from start to finish.
-
-### 😤 The Problem
-
-You ask Claude to create a React component:
-
-```
-> Create a Button component
-```
-
-Claude responds:
-```jsx
-const Button = ({ label, onClick }) => {
-  return <button onClick={onClick}>{label}</button>
-}
-```
-
-**But you wanted TypeScript interfaces!** This keeps happening...
-
----
-
-### 📝 Step 1: Record the Mismatch
-
-Run `/calibrate` right after the mismatch:
-
-```
-What kind of mismatch just happened?
-> 1. Something was missing
-
-Situation: > Creating React components
-Expected: > TypeScript interface for props
-Instruction: > Always define a TypeScript interface for component props
-```
-
-Result:
-```
-✅ Record complete
-Same pattern accumulated 1 times
-```
-
----
-
-### 🔄 Step 2: Pattern Repeats
-
-A few days later, same thing happens with a Modal component. Run `/calibrate` again with the same situation and instruction.
-
-```
-✅ Record complete
-Same pattern accumulated 2 times
-
-💡 You can promote this to a Skill with /calibrate review.
-```
-
----
-
-### ⬆️ Step 3: Promote to Skill
-
-Run `/calibrate review`:
-
-```
-📊 Skill Promotion Candidates (2+ repetitions)
-
-[id=1] Creating React components → Always define a TypeScript interface... (2 times)
-
-Enter pattern id(s) to promote: > 1
-```
-
-Preview and save:
-```
-📝 Skill Preview: Creating React components
-...
-[Save] [Edit] [Skip]
-> Save
-
-✅ Skill created: .claude/skills/creating-react-components/SKILL.md
-```
-
----
-
-### ✨ Result: Before vs After
-
-**Restart Claude Code**, then ask the same question:
-
-```
-> Create a Button component
-```
-
-Now Claude responds:
-```tsx
-interface ButtonProps {
-  label: string;
-  onClick: () => void;
-}
-
-const Button = ({ label, onClick }: ButtonProps) => {
-  return <button onClick={onClick}>{label}</button>
-}
-```
-
-🎉 **Claude learned your preference and applies it automatically!**
-
----
-
-## Best Practice
-
-The recommended workflow for effective calibration:
-
-```
-1. Work with Claude as usual
-       ↓
-2. Notice a mismatch? Run /calibrate immediately
-       ↓
-3. Be specific: "When creating React components" > "When coding"
-       ↓
-4. Write clear instructions: "Always use TypeScript interfaces"
-       ↓
-5. Let patterns accumulate naturally (2+ times)
-       ↓
-6. Review with /calibrate review weekly
-       ↓
-7. Restart Claude Code to activate new Skills
-```
-
-**Tips:**
-- 📝 Record mismatches **right when they happen** - context matters
-- 🎯 Be **specific** about the situation - vague patterns don't help
-- ✍️ Write **imperative instructions** - "Always do X" or "Never do Y"
-- 🔄 **Check `/calibrate status`** regularly to see accumulated patterns
-- 🚀 After promoting Skills, **restart Claude Code** to load them
-- 🤖 **Auto-detection** records patterns automatically when fixing errors - no manual `/calibrate` needed
-- ⚙️ Use `/calibrate auto off` if you prefer **manual-only** recording
-
 ## Usage
 
 ### Initialize
@@ -627,6 +493,140 @@ Start new records with /calibrate.
 ```
 
 </details>
+
+## Example: Teaching Claude Your Preferences
+
+Let's walk through a real scenario from start to finish.
+
+### 😤 The Problem
+
+You ask Claude to create a React component:
+
+```
+> Create a Button component
+```
+
+Claude responds:
+```jsx
+const Button = ({ label, onClick }) => {
+  return <button onClick={onClick}>{label}</button>
+}
+```
+
+**But you wanted TypeScript interfaces!** This keeps happening...
+
+---
+
+### 📝 Step 1: Record the Mismatch
+
+Run `/calibrate` right after the mismatch:
+
+```
+What kind of mismatch just happened?
+> 1. Something was missing
+
+Situation: > Creating React components
+Expected: > TypeScript interface for props
+Instruction: > Always define a TypeScript interface for component props
+```
+
+Result:
+```
+✅ Record complete
+Same pattern accumulated 1 times
+```
+
+---
+
+### 🔄 Step 2: Pattern Repeats
+
+A few days later, same thing happens with a Modal component. Run `/calibrate` again with the same situation and instruction.
+
+```
+✅ Record complete
+Same pattern accumulated 2 times
+
+💡 You can promote this to a Skill with /calibrate review.
+```
+
+---
+
+### ⬆️ Step 3: Promote to Skill
+
+Run `/calibrate review`:
+
+```
+📊 Skill Promotion Candidates (2+ repetitions)
+
+[id=1] Creating React components → Always define a TypeScript interface... (2 times)
+
+Enter pattern id(s) to promote: > 1
+```
+
+Preview and save:
+```
+📝 Skill Preview: Creating React components
+...
+[Save] [Edit] [Skip]
+> Save
+
+✅ Skill created: .claude/skills/creating-react-components/SKILL.md
+```
+
+---
+
+### ✨ Result: Before vs After
+
+**Restart Claude Code**, then ask the same question:
+
+```
+> Create a Button component
+```
+
+Now Claude responds:
+```tsx
+interface ButtonProps {
+  label: string;
+  onClick: () => void;
+}
+
+const Button = ({ label, onClick }: ButtonProps) => {
+  return <button onClick={onClick}>{label}</button>
+}
+```
+
+🎉 **Claude learned your preference and applies it automatically!**
+
+---
+
+## Best Practice
+
+The recommended workflow for effective calibration:
+
+```
+1. Work with Claude as usual
+       ↓
+2. Notice a mismatch? Run /calibrate immediately
+       ↓
+3. Be specific: "When creating React components" > "When coding"
+       ↓
+4. Write clear instructions: "Always use TypeScript interfaces"
+       ↓
+5. Let patterns accumulate naturally (2+ times)
+       ↓
+6. Review with /calibrate review weekly
+       ↓
+7. Restart Claude Code to activate new Skills
+```
+
+**Tips:**
+- 📝 Record mismatches **right when they happen** - context matters
+- 🎯 Be **specific** about the situation - vague patterns don't help
+- ✍️ Write **imperative instructions** - "Always do X" or "Never do Y"
+- 🔄 **Check `/calibrate status`** regularly to see accumulated patterns
+- 🚀 After promoting Skills, **restart Claude Code** to load them
+- 🤖 **Auto-detection** records patterns automatically when fixing errors - no manual `/calibrate` needed
+- ⚙️ Use `/calibrate auto off` if you prefer **manual-only** recording
 
 ## How It Works
 
