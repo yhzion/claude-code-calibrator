@@ -66,7 +66,9 @@ Files to create:
 [Confirm] [Cancel]
 ```
 
-On confirmation:
+On confirmation, execute Step 2-A, Step 2-B, and Step 2-C in order.
+
+### Step 2-A: Create Directories and Database
 ```bash
 # Create directories (with error handling)
 if ! mkdir -p "$PROJECT_ROOT/.claude/calibrator"; then
@@ -88,7 +90,13 @@ fi
 
 # Set secure permissions on DB file
 chmod 600 "$PROJECT_ROOT/.claude/calibrator/patterns.db"  # Owner only: rw
+```
 
+### Step 2-B: Update .gitignore (REQUIRED for Git projects)
+
+**IMPORTANT:** This step MUST be executed for Git projects to prevent accidental commits of sensitive data.
+
+```bash
 # Update .gitignore (for Git projects)
 if [ -d "$PROJECT_ROOT/.git" ]; then
   GITIGNORE_ENTRIES="
@@ -100,15 +108,29 @@ if [ -d "$PROJECT_ROOT/.git" ]; then
 .claude/calibrator/*.db-shm"
 
   if [ -f "$PROJECT_ROOT/.gitignore" ]; then
-    # Check if calibrator entries already exist
+    # .gitignore exists: append if not already present
     if ! grep -q ".claude/calibrator/" "$PROJECT_ROOT/.gitignore"; then
       echo "$GITIGNORE_ENTRIES" >> "$PROJECT_ROOT/.gitignore"
       echo "📝 Calibrator entries added to .gitignore"
+    else
+      echo "📝 .gitignore already contains calibrator entries"
     fi
   else
-    # Create .gitignore file
+    # .gitignore does not exist: create new file
     echo "$GITIGNORE_ENTRIES" > "$PROJECT_ROOT/.gitignore"
-    echo "📝 .gitignore file created"
+    echo "📝 .gitignore file created with calibrator entries"
+  fi
+fi
+```
+
+### Step 2-C: Verify .gitignore was updated
+```bash
+# Verify .gitignore contains calibrator entries
+if [ -d "$PROJECT_ROOT/.git" ]; then
+  if [ -f "$PROJECT_ROOT/.gitignore" ] && grep -q ".claude/calibrator/" "$PROJECT_ROOT/.gitignore"; then
+    echo "✅ .gitignore verification passed"
+  else
+    echo "⚠️ Warning: .gitignore may not be properly configured"
   fi
 fi
 ```
