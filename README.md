@@ -1,5 +1,7 @@
 # Skillfy
 
+🌍 **English** | [한국어](./docs/README.ko.md) | [日本語](./docs/README.ja.md) | [中文](./docs/README.zh.md)
+
 ![macOS: compatible](https://img.shields.io/badge/macOS-compatible-brightgreen?style=for-the-badge&logo=apple&logoColor=white)
 ![Linux: compatible](https://img.shields.io/badge/Linux-compatible-brightgreen?style=for-the-badge&logo=linux&logoColor=white)
 ![Windows: use WSL](https://img.shields.io/badge/Windows-use%20WSL-blue?style=for-the-badge&logo=windows&logoColor=white)
