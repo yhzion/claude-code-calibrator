@@ -45,5 +45,22 @@ CREATE INDEX IF NOT EXISTS idx_patterns_dismissed ON patterns(dismissed);
 -- Composite index for UPSERT conflict detection (critical for performance)
 CREATE INDEX IF NOT EXISTS idx_patterns_situation_instruction ON patterns(situation, instruction);
 
--- Migration: Add dismissed column to existing patterns table (for existing installations)
--- This is safe to run multiple times due to SQLite's behavior with existing columns
+-- ============================================================================
+-- Migration Instructions (v1.0 → v1.1)
+-- ============================================================================
+-- For existing installations with schema v1.0, run the following migration:
+--
+-- Step 1: Check if dismissed column exists
+--   SELECT COUNT(*) FROM pragma_table_info('patterns') WHERE name='dismissed';
+--
+-- Step 2: If result is 0, add the column:
+--   ALTER TABLE patterns ADD COLUMN dismissed INTEGER NOT NULL DEFAULT 0 CHECK(dismissed IN (0, 1));
+--
+-- Step 3: Add index for dismissed column:
+--   CREATE INDEX IF NOT EXISTS idx_patterns_dismissed ON patterns(dismissed);
+--
+-- Step 4: Update schema version:
+--   INSERT OR REPLACE INTO schema_version (version) VALUES ('1.1');
+--
+-- Note: Commands that use the dismissed column (calibrate-review, prompt-skill-promotion)
+-- will auto-migrate the database if they detect an older schema version.

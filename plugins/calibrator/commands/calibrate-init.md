@@ -213,10 +213,57 @@ fi
 
 ### Step 3: When Already Exists
 
-If `.claude/calibrator` directory exists (from Step 1), display:
+If `.claude/calibrator` directory exists (from Step 1):
 
+**Step 3-A: Check Schema Version**
+```bash
+DB_PATH="$PROJECT_ROOT/.claude/calibrator/patterns.db"
+CURRENT_VERSION=""
+NEEDS_MIGRATION="no"
+
+if [ -f "$DB_PATH" ]; then
+  # Get current schema version
+  CURRENT_VERSION=$(sqlite3 "$DB_PATH" "SELECT version FROM schema_version ORDER BY applied_at DESC LIMIT 1;" 2>/dev/null || echo "")
+
+  # If no version found, assume 1.0 (pre-versioning)
+  if [ -z "$CURRENT_VERSION" ]; then
+    CURRENT_VERSION="1.0"
+  fi
+
+  # Check if migration is needed (target: 1.1)
+  if [ "$CURRENT_VERSION" != "1.1" ]; then
+    NEEDS_MIGRATION="yes"
+  fi
+fi
 ```
-⚠️ Calibrator already exists
+
+**Step 3-B: Display Options Based on Migration Status**
+
+If `NEEDS_MIGRATION="yes"`, display:
+```
+⚠️ Calibrator already exists (schema v{CURRENT_VERSION})
+
+A database upgrade is available (v{CURRENT_VERSION} → v1.1).
+
+Current files:
+- .claude/calibrator/patterns.db
+
+Options:
+1. Upgrade database - Migrate to v1.1 (preserves all data)
+2. Keep as-is - Exit without changes (some features may not work)
+3. Reinitialize - Delete all data and start fresh with v1.1
+
+Select option (1/2/3):
+```
+
+Wait for user response:
+- User responds "1" or "upgrade" → Execute migration (Step 3-C)
+- User responds "2" or "keep" → Exit with message: "Keeping existing installation. Note: Some features may not work with older schema."
+- User responds "3" or "reinitialize" → Execute cleanup and proceed to Step 2
+
+If `NEEDS_MIGRATION="no"` (already at latest version), display:
+```
+⚠️ Calibrator already exists (schema v1.1 - up to date)
 
 Current files:
 - .claude/calibrator/patterns.db
@@ -230,7 +277,35 @@ Select option (1/2):
 
 Wait for user response:
 - User responds "1" or "keep" → Exit with message: "Keeping existing installation."
-- User responds "2" or "reinitialize" → Execute cleanup and proceed to Step 2:
+- User responds "2" or "reinitialize" → Execute cleanup and proceed to Step 2
+
+**Step 3-C: Execute Migration (v1.0 → v1.1)**
+```bash
+echo "🔄 Migrating database schema from v1.0 to v1.1..."
+
+# Add dismissed column if it doesn't exist
+# SQLite doesn't have IF NOT EXISTS for ADD COLUMN, so we check first
+HAS_DISMISSED=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM pragma_table_info('patterns') WHERE name='dismissed';" 2>/dev/null || echo "0")
+
+if [ "$HAS_DISMISSED" = "0" ]; then
+  if ! sqlite3 "$DB_PATH" "ALTER TABLE patterns ADD COLUMN dismissed INTEGER NOT NULL DEFAULT 0 CHECK(dismissed IN (0, 1));"; then
+    echo "❌ Error: Failed to add dismissed column"
+    exit 1
+  fi
+
+  # Add index for dismissed column
+  sqlite3 "$DB_PATH" "CREATE INDEX IF NOT EXISTS idx_patterns_dismissed ON patterns(dismissed);" 2>/dev/null || true
+fi
+
+# Update schema version
+sqlite3 "$DB_PATH" "INSERT OR REPLACE INTO schema_version (version) VALUES ('1.1');" 2>/dev/null || true
+
+echo "✅ Database migrated to schema v1.1"
+```
+
+After successful migration, display completion message and exit.
+
+**Step 3-D: Reinitialize (cleanup)**
 ```bash
 rm -rf "$PROJECT_ROOT/.claude/calibrator"
 echo "🗑️ Existing data removed"

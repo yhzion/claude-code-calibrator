@@ -48,106 +48,18 @@ Promoting to a Skill means Claude will learn to handle this pattern automaticall
 
 #### If user selects "Yes":
 
-1. Create the skill file using template:
+1. Create the skill file using the centralized script:
 ```bash
-set -euo pipefail
+# Use the centralized create-skill.sh script for consistent skill creation
+# This script handles: name generation, collision detection, template processing, DB update
+SCRIPT_PATH="${CLAUDE_PLUGIN_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)/plugins/calibrator}/scripts/create-skill.sh"
 
-PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-DB_PATH="$PROJECT_ROOT/.claude/calibrator/patterns.db"
-SKILLS_DIR="$PROJECT_ROOT/.claude/skills"
-# Use CLAUDE_PLUGIN_ROOT if available (plugin installation), fallback to PROJECT_ROOT
-TEMPLATE_PATH="${CLAUDE_PLUGIN_ROOT:-$PROJECT_ROOT/plugins/calibrator}/templates/skill-template.md"
-
-# Ensure skills directory exists
-mkdir -p "$SKILLS_DIR"
-
-# Generate kebab-case skill name from situation (consistent with calibrate-review.md)
-SITUATION="{{SITUATION}}"
-SKILL_NAME=$(printf '%s' "$SITUATION" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | sed 's/[^a-z0-9-]//g' | sed 's/--*/-/g' | sed 's/^-//' | sed 's/-$//' | head -c 50)
-
-# Handle empty or invalid skill name
-if [ -z "$SKILL_NAME" ]; then
-  SKILL_NAME="calibrator-pattern-{{PATTERN_ID}}"
-fi
-
-SKILL_DIR="$SKILLS_DIR/$SKILL_NAME"
-
-# Handle name collision by adding suffix
-SUFFIX=0
-ORIGINAL_SKILL_DIR="$SKILL_DIR"
-while [ -d "$SKILL_DIR" ]; do
-  SKILL_DIR="${ORIGINAL_SKILL_DIR}-${SUFFIX}"
-  SUFFIX=$((SUFFIX + 1))
-  if [ "$SUFFIX" -gt 100 ]; then
-    echo "❌ Error: Too many skill name collisions"
-    exit 1
-  fi
-done
-
-# Create directory (collision already handled above)
-mkdir -p "$SKILL_DIR"
-
-# Get pattern details from database for template
-ROW=$(sqlite3 -separator $'\t' "$DB_PATH" \
-  "SELECT first_seen, last_seen FROM patterns WHERE id = {{PATTERN_ID}};" \
-  2>/dev/null) || ROW=""
-
-if [ -z "$ROW" ]; then
-  rmdir "$SKILL_DIR" 2>/dev/null
-  echo "❌ Error: Pattern not found (id={{PATTERN_ID}})"
+if [ -f "$SCRIPT_PATH" ]; then
+  bash "$SCRIPT_PATH" "{{PATTERN_ID}}" "{{SITUATION}}" "{{INSTRUCTION}}" "{{COUNT}}"
+else
+  echo "❌ Error: create-skill.sh not found at $SCRIPT_PATH"
   exit 1
 fi
-
-IFS=$'\t' read -r FIRST_SEEN LAST_SEEN <<<"$ROW"
-
-# Escape variables for sed substitution
-escape_sed() {
-  printf '%s' "$1" | awk '
-    BEGIN { ORS="" }
-    {
-      gsub(/\\/, "\\\\")
-      gsub(/&/, "\\\\&")
-      gsub(/\|/, "\\|")
-      if (NR > 1) printf "\\n"
-      print
-    }
-  '
-}
-
-SAFE_SKILL_NAME=$(escape_sed "$SKILL_NAME")
-SAFE_INSTRUCTION=$(escape_sed "{{INSTRUCTION}}")
-SAFE_SITUATION=$(escape_sed "{{SITUATION}}")
-
-# Verify template file exists
-if [ ! -f "$TEMPLATE_PATH" ]; then
-  rmdir "$SKILL_DIR" 2>/dev/null
-  echo "❌ Error: Template file not found at $TEMPLATE_PATH"
-  exit 1
-fi
-
-# Generate Skill using template file (consistent with calibrate-review.md)
-if ! sed -e "s|{{SKILL_NAME}}|$SAFE_SKILL_NAME|g" \
-    -e "s|{{INSTRUCTION}}|$SAFE_INSTRUCTION|g" \
-    -e "s|{{SITUATION}}|$SAFE_SITUATION|g" \
-    -e "s|{{COUNT}}|{{COUNT}}|g" \
-    -e "s|{{FIRST_SEEN}}|$FIRST_SEEN|g" \
-    -e "s|{{LAST_SEEN}}|$LAST_SEEN|g" \
-    "$TEMPLATE_PATH" > "$SKILL_DIR/SKILL.md"; then
-  rm -rf "$SKILL_DIR"
-  echo "❌ Error: Failed to generate skill file"
-  exit 1
-fi
-
-# SQL Injection prevention: escape single quotes
-escape_sql() {
-  printf '%s' "$1" | sed "s/'/''/g"
-}
-SAFE_SKILL_PATH=$(escape_sql "$SKILL_DIR")
-
-# Update database
-sqlite3 "$DB_PATH" "UPDATE patterns SET promoted = 1, skill_path = '$SAFE_SKILL_PATH' WHERE id = {{PATTERN_ID}};"
-
-echo "SKILL_CREATED: $SKILL_DIR/SKILL.md"
 ```
 
 2. Display success message:
@@ -166,6 +78,17 @@ set -euo pipefail
 
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 DB_PATH="$PROJECT_ROOT/.claude/calibrator/patterns.db"
+
+# Auto-migrate schema if needed (ensures dismissed column exists)
+CURRENT_VERSION=$(sqlite3 "$DB_PATH" "SELECT version FROM schema_version ORDER BY applied_at DESC LIMIT 1;" 2>/dev/null || echo "")
+if [ -z "$CURRENT_VERSION" ] || [ "$CURRENT_VERSION" = "1.0" ]; then
+  HAS_DISMISSED=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM pragma_table_info('patterns') WHERE name='dismissed';" 2>/dev/null || echo "0")
+  if [ "$HAS_DISMISSED" = "0" ]; then
+    sqlite3 "$DB_PATH" "ALTER TABLE patterns ADD COLUMN dismissed INTEGER NOT NULL DEFAULT 0 CHECK(dismissed IN (0, 1));" 2>/dev/null || true
+    sqlite3 "$DB_PATH" "CREATE INDEX IF NOT EXISTS idx_patterns_dismissed ON patterns(dismissed);" 2>/dev/null || true
+  fi
+  sqlite3 "$DB_PATH" "INSERT OR REPLACE INTO schema_version (version) VALUES ('1.1');" 2>/dev/null || true
+fi
 
 sqlite3 "$DB_PATH" "UPDATE patterns SET dismissed = 1 WHERE id = {{PATTERN_ID}};"
 

@@ -65,6 +65,38 @@ if [ ! -f "$DB_PATH" ]; then
   exit 1
 fi
 
+# ============================================================================
+# Schema Migration (auto-upgrade for backwards compatibility)
+# ============================================================================
+
+# Check and auto-migrate schema if needed
+CURRENT_VERSION=$(sqlite3 "$DB_PATH" "SELECT version FROM schema_version ORDER BY applied_at DESC LIMIT 1;" 2>/dev/null || echo "")
+if [ -z "$CURRENT_VERSION" ]; then
+  CURRENT_VERSION="1.0"
+fi
+
+if [ "$CURRENT_VERSION" = "1.0" ]; then
+  echo "🔄 Auto-migrating database schema from v1.0 to v1.1..."
+
+  # Add dismissed column if it doesn't exist
+  HAS_DISMISSED=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM pragma_table_info('patterns') WHERE name='dismissed';" 2>/dev/null || echo "0")
+
+  if [ "$HAS_DISMISSED" = "0" ]; then
+    if ! sqlite3 "$DB_PATH" "ALTER TABLE patterns ADD COLUMN dismissed INTEGER NOT NULL DEFAULT 0 CHECK(dismissed IN (0, 1));"; then
+      echo "❌ Error: Failed to migrate database. Run /calibrate init to upgrade."
+      exit 1
+    fi
+    sqlite3 "$DB_PATH" "CREATE INDEX IF NOT EXISTS idx_patterns_dismissed ON patterns(dismissed);" 2>/dev/null || true
+  fi
+
+  sqlite3 "$DB_PATH" "INSERT OR REPLACE INTO schema_version (version) VALUES ('1.1');" 2>/dev/null || true
+  echo "✅ Database migrated to schema v1.1"
+fi
+
+# ============================================================================
+# Path Validation
+# ============================================================================
+
 # Path traversal protection: validate that a path is under allowed directory
 # (consistent with calibrate-delete.md and calibrate-refactor.md)
 validate_skill_path() {
