@@ -25,19 +25,13 @@ SKILL_OUTPUT_PATH="$PROJECT_ROOT/.claude/skills"
 
 # POSIX-compatible version comparison
 # Returns 0 (true/success) if $1 >= $2, 1 (false/failure) otherwise
-# Handles versions with different number of parts (e.g., "3.24" vs "3.24.0")
 version_ge() {
-  printf '%s\n%s' "$1" "$2" | awk -F. '
-    NR==1 { for(i=1; i<=NF; i++) v1[i]=$i+0; n1=NF; next }
-    NR==2 {
-      for(i=1; i<=NF; i++) v2[i]=$i+0
-      n2=NF
-      n = (n1 > n2) ? n1 : n2
-      for(i=1; i<=n; i++) {
-        a = (i <= n1) ? v1[i] : 0
-        b = (i <= n2) ? v2[i] : 0
-        if(a > b) exit 0
-        if(a < b) exit 1
+  printf '%s\n%s' "$2" "$1" | awk -F. '
+    NR==1 { split($0,a,"."); next }
+    NR==2 { split($0,b,".")
+      for(i=1; i<=3; i++) {
+        if((b[i]+0) > (a[i]+0)) exit 0
+        if((b[i]+0) < (a[i]+0)) exit 1
       }
       exit 0
     }'
@@ -62,7 +56,8 @@ if [ ! -f "$DB_PATH" ]; then
 fi
 
 # Template file path for skill regeneration
-TEMPLATE_PATH="$PROJECT_ROOT/plugins/calibrator/templates/skill-template.md"
+# Use CLAUDE_PLUGIN_ROOT if available (plugin installation), fallback to PROJECT_ROOT
+TEMPLATE_PATH="${CLAUDE_PLUGIN_ROOT:-$PROJECT_ROOT/plugins/calibrator}/templates/skill-template.md"
 if [ ! -f "$TEMPLATE_PATH" ]; then
   echo "❌ Error: Template file not found at $TEMPLATE_PATH"
   exit 1
@@ -315,6 +310,12 @@ Keep which instruction as primary? Enter pattern id:
 # Input sanitization: remove non-numeric and non-comma characters to prevent IFS injection
 # Using printf instead of echo for safer handling (echo may interpret -n, -e options)
 SANITIZED_IDS=$(printf '%s' "$MERGE_IDS" | tr -cd '0-9,')
+
+# Validate PRIMARY_ID (the pattern whose instruction will be kept)
+if ! [[ "$PRIMARY_ID" =~ ^[0-9]+$ ]]; then
+  echo "❌ Error: Invalid primary pattern id '$PRIMARY_ID'"
+  exit 1
+fi
 
 # Validate all pattern ids
 IFS=',' read -ra PATTERN_IDS <<< "$SANITIZED_IDS"

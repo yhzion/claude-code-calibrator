@@ -1,11 +1,20 @@
 ---
 name: auto-calibrate
-description: Automatically detect and record error correction patterns when fixing lint, format, type check, build, or test errors. Triggers when Claude fixes recurring issues and suggests skill promotion when patterns repeat 2+ times.
+description: Analyzes error corrections and records learned patterns to the patterns table. Works with detect-errors.sh hook which tracks error frequency in observations. Triggers when Claude successfully fixes errors and understands the fix well enough to create a learnable instruction.
 ---
 
 # Auto-Calibrate Skill
 
-This skill automatically detects and records error correction patterns without requiring manual `/calibrate` command execution.
+This skill analyzes error corrections and records learned patterns with meaningful instructions.
+
+## Role Separation with Hook
+
+| Component | Role | Records To |
+|-----------|------|------------|
+| **detect-errors.sh (Hook)** | Frequency tracking - captures WHAT failed | observations table |
+| **auto-calibrate.md (Skill)** | Pattern learning - captures HOW to fix it | patterns table |
+
+The hook automatically runs on every Bash error and logs the occurrence. This skill activates when Claude understands the fix and can articulate a learnable instruction.
 
 ## When This Skill Activates
 
@@ -171,15 +180,18 @@ When this skill activates, use this format to notify the user:
 
 ```
 ┌─ 🔄 Auto-Calibrate ──────────────────────────────┐
-│ Recorded: "{situation_summary}"                  │
+│ Learned: "{situation_summary}"                   │
 │ Category: {category} | Occurrences: {count}      │
 └──────────────────────────────────────────────────┘
 ```
 
-If count >= 2, add promotion suggestion on a new line:
+If count >= CALIBRATOR_THRESHOLD (default 2), add promotion suggestion on a new line:
 ```
 💡 Pattern repeated {count}x → /calibrate review to promote to skill
 ```
+
+**Note:** The hook (detect-errors.sh) tracks error frequency in `observations` table.
+This skill records the actual learned pattern with instruction to `patterns` table.
 
 ## Important Notes
 

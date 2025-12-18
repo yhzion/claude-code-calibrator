@@ -25,7 +25,8 @@ export LC_ALL=C.UTF-8 2>/dev/null || export LC_ALL=en_US.UTF-8 2>/dev/null || tr
 # Get project root (Git root or current directory as fallback)
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 DB_PATH="$PROJECT_ROOT/.claude/calibrator/patterns.db"
-THRESHOLD=2
+# Configurable threshold (default: 2)
+THRESHOLD="${CALIBRATOR_THRESHOLD:-2}"
 
 # POSIX-compatible version comparison (returns 0 if $1 >= $2)
 version_ge() {
@@ -61,7 +62,7 @@ fi
 
 ## Recording Flow
 
-### Step 2: Category Selection
+### Step 1: Category Selection
 
 Ask the user to select a category with a clear message:
 
@@ -84,7 +85,7 @@ Wait for user response and map to category:
 - User responds "3" → `CATEGORY="style"`
 - User responds "4" → `CATEGORY="other"`
 
-### Step 3: Situation and Expectation Input
+### Step 2: Situation and Expectation Input
 
 Ask the user three questions sequentially:
 
@@ -115,7 +116,7 @@ Instruction:
 ```
 Wait for user response → Save as `INSTRUCTION`
 
-### Step 4: Input Validation
+### Step 3: Input Validation
 ```bash
 # Validate category defensively
 case "$CATEGORY" in
@@ -140,7 +141,7 @@ if [ ${#INSTRUCTION} -eq 0 ] || [ ${#INSTRUCTION} -gt 2000 ]; then
 fi
 ```
 
-### Step 5: Database Recording
+### Step 4: Database Recording
 
 **Input Escaping** (SQL Injection Prevention):
 ```bash
@@ -185,7 +186,7 @@ Get current pattern count:
 COUNT=$(sqlite3 "$DB_PATH" "SELECT count FROM patterns WHERE situation = '$SAFE_SITUATION' AND instruction = '$SAFE_INSTRUCTION';" 2>/dev/null || echo "1")
 ```
 
-### Step 6: Output Result
+### Step 5: Output Result
 English example:
 ```
 ✅ Record complete

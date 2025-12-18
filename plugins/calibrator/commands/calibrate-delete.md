@@ -27,6 +27,28 @@ if ! command -v sqlite3 &> /dev/null; then
   exit 1
 fi
 
+# POSIX-compatible version comparison
+# Returns 0 (true/success) if $1 >= $2, 1 (false/failure) otherwise
+version_ge() {
+  printf '%s\n%s' "$2" "$1" | awk -F. '
+    NR==1 { split($0,a,"."); next }
+    NR==2 { split($0,b,".")
+      for(i=1; i<=3; i++) {
+        if((b[i]+0) > (a[i]+0)) exit 0
+        if((b[i]+0) < (a[i]+0)) exit 1
+      }
+      exit 0
+    }'
+}
+
+# SQLite 3.24.0+ required for UPSERT support
+SQLITE_VERSION=$(sqlite3 --version 2>/dev/null | awk '{print $1}')
+MIN_SQLITE_VERSION="3.24.0"
+if ! version_ge "$SQLITE_VERSION" "$MIN_SQLITE_VERSION"; then
+  echo "❌ Error: SQLite $MIN_SQLITE_VERSION or higher required. Found: ${SQLITE_VERSION:-unknown}"
+  exit 1
+fi
+
 if [ ! -f "$DB_PATH" ]; then
   echo "❌ Calibrator is not initialized. Run /calibrate init first."
   exit 1

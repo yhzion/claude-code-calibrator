@@ -1,12 +1,21 @@
 ---
 name: calibrate review
 description: Review accumulated patterns and promote to Skills
+arguments:
+  - name: mode
+    description: "Review mode: default (pending patterns) or --dismissed (previously declined patterns)"
+    required: false
 allowed-tools: Bash(git:*), Bash(sqlite3:*), Bash(test:*), Bash(mkdir:*), Bash(sed:*), Bash(printf:*), Bash(tr:*), Bash(cut:*), Bash(date:*), Bash(echo:*), Bash(awk:*)
 ---
 
-# /calibrate review
+# /calibrate review [--dismissed]
 
 Review repeated patterns and promote them to Skills.
+
+## Usage
+
+- `/calibrate review` - Review pending patterns (count >= 2, not promoted, not dismissed)
+- `/calibrate review --dismissed` - Review previously dismissed patterns for manual promotion
 
 ## Pre-execution Setup
 
@@ -21,7 +30,8 @@ export LC_ALL=C.UTF-8 2>/dev/null || export LC_ALL=en_US.UTF-8 2>/dev/null || tr
 # Get project root (Git root or current directory as fallback)
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 DB_PATH="$PROJECT_ROOT/.claude/calibrator/patterns.db"
-THRESHOLD=2
+# Configurable threshold (default: 2)
+THRESHOLD="${CALIBRATOR_THRESHOLD:-2}"
 SKILL_OUTPUT_PATH="$PROJECT_ROOT/.claude/skills"
 
 # POSIX-compatible version comparison (returns 0 if $1 >= $2)
@@ -54,20 +64,90 @@ if [ ! -f "$DB_PATH" ]; then
   echo "❌ Calibrator is not initialized. Run /calibrate init first."
   exit 1
 fi
+
+# ============================================================================
+# Schema Migration (auto-upgrade for backwards compatibility)
+# ============================================================================
+
+# Check and auto-migrate schema if needed
+CURRENT_VERSION=$(sqlite3 "$DB_PATH" "SELECT version FROM schema_version ORDER BY applied_at DESC LIMIT 1;" 2>/dev/null || echo "")
+if [ -z "$CURRENT_VERSION" ]; then
+  CURRENT_VERSION="1.0"
+fi
+
+if [ "$CURRENT_VERSION" = "1.0" ]; then
+  echo "🔄 Auto-migrating database schema from v1.0 to v1.1..."
+
+  # Add dismissed column if it doesn't exist
+  HAS_DISMISSED=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM pragma_table_info('patterns') WHERE name='dismissed';" 2>/dev/null || echo "0")
+
+  if [ "$HAS_DISMISSED" = "0" ]; then
+    if ! sqlite3 "$DB_PATH" "ALTER TABLE patterns ADD COLUMN dismissed INTEGER NOT NULL DEFAULT 0 CHECK(dismissed IN (0, 1));"; then
+      echo "❌ Error: Failed to migrate database. Run /calibrate init to upgrade."
+      exit 1
+    fi
+    sqlite3 "$DB_PATH" "CREATE INDEX IF NOT EXISTS idx_patterns_dismissed ON patterns(dismissed);" 2>/dev/null || true
+  fi
+
+  sqlite3 "$DB_PATH" "INSERT OR REPLACE INTO schema_version (version) VALUES ('1.1');" 2>/dev/null || true
+  echo "✅ Database migrated to schema v1.1"
+fi
+
+# ============================================================================
+# Path Validation
+# ============================================================================
+
+# Path traversal protection: validate that a path is under allowed directory
+# (consistent with calibrate-delete.md and calibrate-refactor.md)
+validate_skill_path() {
+  local path="$1"
+  local resolved_path resolved_base
+
+  # Resolve to absolute path and check it's under SKILL_OUTPUT_PATH
+  # realpath -m handles non-existent paths and returns absolute path
+  resolved_path=$(realpath -m "$path" 2>/dev/null || echo "")
+  resolved_base=$(realpath -m "$SKILL_OUTPUT_PATH" 2>/dev/null || echo "")
+
+  if [ -z "$resolved_path" ] || [ -z "$resolved_base" ]; then
+    return 1
+  fi
+
+  # Check path starts with base directory
+  case "$resolved_path" in
+    "$resolved_base"/*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
 ```
 
 ## Flow
 
-### Step 1: Query Promotion Candidates
+### Step 1: Determine Review Mode
+Check if `--dismissed` argument was provided:
+- If `--dismissed` → Query dismissed patterns
+- Otherwise → Query pending patterns (default)
+
+### Step 2: Query Promotion Candidates
+
+**Default mode (pending patterns):**
 ```bash
-# Query patterns meeting threshold that haven't been promoted.
+# Query patterns meeting threshold that haven't been promoted or dismissed.
 # Columns: id, situation, instruction, count, first_seen, last_seen
 CANDIDATES=$(sqlite3 -separator $'\t' "$DB_PATH" \
-  "SELECT id, situation, instruction, count, first_seen, last_seen FROM patterns WHERE count >= $THRESHOLD AND promoted = 0 ORDER BY count DESC LIMIT 100;" \
+  "SELECT id, situation, instruction, count, first_seen, last_seen FROM patterns WHERE count >= $THRESHOLD AND promoted = 0 AND (dismissed = 0 OR dismissed IS NULL) ORDER BY count DESC LIMIT 100;" \
   2>/dev/null) || CANDIDATES=""
 ```
 
-### Step 2-A: No Candidates
+**Dismissed mode (`--dismissed`):**
+```bash
+# Query dismissed patterns for manual review.
+# Columns: id, situation, instruction, count, first_seen, last_seen
+CANDIDATES=$(sqlite3 -separator $'\t' "$DB_PATH" \
+  "SELECT id, situation, instruction, count, first_seen, last_seen FROM patterns WHERE dismissed = 1 AND promoted = 0 ORDER BY count DESC LIMIT 100;" \
+  2>/dev/null) || CANDIDATES=""
+```
+
+### Step 3-A: No Candidates (Default Mode)
 ```
 📊 No patterns available for promotion
 
@@ -75,7 +155,15 @@ Patterns need to repeat 2+ times to be promoted to a Skill.
 Keep recording with /calibrate.
 ```
 
-### Step 2-B: Candidates Found
+### Step 3-A: No Candidates (Dismissed Mode)
+```
+📋 No dismissed patterns found
+
+Dismissed patterns are those you previously declined to promote.
+Use `/calibrate review` to see pending patterns instead.
+```
+
+### Step 3-B: Candidates Found (Default Mode)
 
 Display the candidates list with selection options:
 ```
@@ -88,13 +176,29 @@ Enter pattern id(s) to promote (comma-separated for multiple, or 'skip' to cance
 Example: 12 or 12,15
 ```
 
+### Step 3-B: Candidates Found (Dismissed Mode)
+
+Display the dismissed patterns list:
+```
+📋 Previously Dismissed Patterns
+
+These patterns were declined for automatic promotion.
+You can manually promote them now.
+
+[id=12] Model creation → Always include timestamp fields (3 times, dismissed)
+[id=15] API endpoint → Always include error handling (2 times, dismissed)
+
+Enter pattern id(s) to promote (comma-separated for multiple, or 'skip' to cancel):
+Example: 12 or 12,15
+```
+
 Note: The list should be dynamically generated from the CANDIDATES query result.
 
 Wait for user response:
 - User responds with id(s) (e.g., "12" or "12,15") → Parse and process each PATTERN_ID
 - User responds "skip" or "cancel" → Exit with message: "No patterns promoted."
 
-### Step 3: Load Pattern Details
+### Step 4: Load Pattern Details
 For each selected `PATTERN_ID`:
 ```bash
 # Validate id defensively
@@ -115,7 +219,7 @@ fi
 IFS=$'\t' read -r SITUATION INSTRUCTION COUNT FIRST_SEEN LAST_SEEN <<<"$ROW"
 ```
 
-### Step 4: Skill Preview and Confirmation
+### Step 5: Skill Preview and Confirmation
 
 Display the skill preview:
 ```
@@ -160,7 +264,7 @@ Wait for user response:
 - User responds "2" or "edit" → Ask "Enter the modified instruction:" and wait for response, then proceed to Step 5
 - User responds "3" or "skip" → Skip this pattern and continue to next (if any)
 
-### Step 5: Skill Creation
+### Step 6: Skill Creation
 On save selection:
 ```bash
 # Generate Skill name (kebab-case) - Path Traversal prevention
@@ -178,29 +282,38 @@ fi
 # First ensure parent directory exists
 mkdir -p "$SKILL_OUTPUT_PATH"
 
+# Configurable max attempts (environment variable or default)
+MAX_SKILL_NAME_ATTEMPTS="${CALIBRATOR_MAX_NAME_ATTEMPTS:-100}"
+
 BASE_SKILL_NAME="$SKILL_NAME"
 SUFFIX=0
-MAX_ATTEMPTS=100
 SKILL_DIR=""
 
-while [ $SUFFIX -le $MAX_ATTEMPTS ]; do
+while [ $SUFFIX -le $MAX_SKILL_NAME_ATTEMPTS ]; do
   if [ $SUFFIX -eq 0 ]; then
     CURRENT_NAME="$BASE_SKILL_NAME"
   else
     CURRENT_NAME="${BASE_SKILL_NAME}-${SUFFIX}"
   fi
 
+  # Validate CURRENT path right before creation (prevents TOCTOU race condition)
+  CURRENT_PATH="$SKILL_OUTPUT_PATH/$CURRENT_NAME"
+  if ! validate_skill_path "$CURRENT_PATH"; then
+    echo "❌ Error: Invalid skill path detected (potential path traversal)"
+    exit 1
+  fi
+
   # mkdir (without -p) fails if directory exists - atomic check+create
-  if mkdir "$SKILL_OUTPUT_PATH/$CURRENT_NAME" 2>/dev/null; then
+  if mkdir "$CURRENT_PATH" 2>/dev/null; then
     SKILL_NAME="$CURRENT_NAME"
-    SKILL_DIR="$SKILL_OUTPUT_PATH/$SKILL_NAME"
+    SKILL_DIR="$CURRENT_PATH"
     break
   fi
   SUFFIX=$((SUFFIX + 1))
 done
 
 if [ -z "$SKILL_DIR" ]; then
-  echo "❌ Error: Failed to generate unique skill name after $MAX_ATTEMPTS attempts"
+  echo "❌ Error: Failed to generate unique skill name after $MAX_SKILL_NAME_ATTEMPTS attempts"
   exit 1
 fi
 
@@ -222,7 +335,8 @@ SAFE_INSTRUCTION=$(escape_sed "$INSTRUCTION")
 SAFE_SITUATION=$(escape_sed "$SITUATION")
 
 # Verify template file exists
-TEMPLATE_PATH="$PROJECT_ROOT/plugins/calibrator/templates/skill-template.md"
+# Use CLAUDE_PLUGIN_ROOT if available (plugin installation), fallback to PROJECT_ROOT
+TEMPLATE_PATH="${CLAUDE_PLUGIN_ROOT:-$PROJECT_ROOT/plugins/calibrator}/templates/skill-template.md"
 if [ ! -f "$TEMPLATE_PATH" ]; then
   echo "❌ Error: Template file not found at $TEMPLATE_PATH"
   rmdir "$SKILL_DIR" 2>/dev/null  # Cleanup empty directory
@@ -249,7 +363,8 @@ escape_sql() {
 SAFE_SKILL_PATH=$(escape_sql "$SKILL_OUTPUT_PATH/$SKILL_NAME")
 
 # Update database with error handling
-if ! sqlite3 "$DB_PATH" "UPDATE patterns SET promoted = 1, skill_path = '$SAFE_SKILL_PATH' WHERE id = $PATTERN_ID;"; then
+# Also reset dismissed flag when promoting (for --dismissed mode)
+if ! sqlite3 "$DB_PATH" "UPDATE patterns SET promoted = 1, dismissed = 0, skill_path = '$SAFE_SKILL_PATH' WHERE id = $PATTERN_ID;"; then
   echo "⚠️ Warning: Skill file created but database update failed"
   echo "   Skill path: $SKILL_OUTPUT_PATH/$SKILL_NAME/SKILL.md"
 fi
