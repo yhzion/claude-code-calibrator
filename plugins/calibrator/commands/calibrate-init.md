@@ -98,7 +98,7 @@ chmod 700 "$PROJECT_ROOT/.claude/calibrator"        # Owner only: rwx
 chmod 700 "$PROJECT_ROOT/.claude/skills"            # Owner only: rwx
 
 # Create DB with inline schema (v1.0)
-sqlite3 "$PROJECT_ROOT/.claude/calibrator/patterns.db" <<'SCHEMA_EOF'
+if ! sqlite3 "$PROJECT_ROOT/.claude/calibrator/patterns.db" <<'SCHEMA_EOF'
 -- Calibrator SQLite Schema v1.0
 -- Requires SQLite 3.24.0+ for UPSERT (ON CONFLICT DO UPDATE) support
 
@@ -142,8 +142,7 @@ CREATE INDEX IF NOT EXISTS idx_patterns_count ON patterns(count DESC);
 CREATE INDEX IF NOT EXISTS idx_patterns_promoted ON patterns(promoted);
 CREATE INDEX IF NOT EXISTS idx_patterns_situation_instruction ON patterns(situation, instruction);
 SCHEMA_EOF
-
-if [ $? -ne 0 ]; then
+then
   rm -f "$PROJECT_ROOT/.claude/calibrator/patterns.db"
   echo "❌ Error: Failed to create database"
   exit 1
