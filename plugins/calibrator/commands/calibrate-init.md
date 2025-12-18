@@ -68,21 +68,15 @@ This will create:
 - .claude/skills/ directory (for promoted skills)
 
 Options:
-1. Initialize with auto-detection (recommended)
-   → Automatically records patterns when fixing lint/type/build/test errors
-2. Initialize without auto-detection
-   → Only record patterns manually with /calibrate
-3. Cancel
+1. Initialize - Create database and directory structure
+2. Cancel
 
-Which option? (1/2/3):
+Which option? (1/2):
 ```
 
 Wait for user response:
-- User responds "1" or "yes" or confirms auto-detection → Set `AUTO_DETECT_ENABLED="yes"`
-- User responds "2" or "no" or declines auto-detection → Set `AUTO_DETECT_ENABLED="no"`
-- User responds "3" or "cancel" → Exit with message: "❌ Initialization cancelled."
-
-On confirmation (option 1 or 2), execute Step 2-A, Step 2-B, and Step 2-C in order.
+- User responds "1" or "yes" → Proceed to Step 2-A, Step 2-B, and Step 2-C
+- User responds "2" or "cancel" → Exit with message: "❌ Initialization cancelled."
 
 ### Step 2-A: Create Directories and Database
 ```bash
@@ -155,21 +149,6 @@ fi
 
 # Set secure permissions on DB file
 chmod 600 "$PROJECT_ROOT/.claude/calibrator/patterns.db"  # Owner only: rw
-```
-
-**Then, based on user's choice in Step 2:**
-
-**If user selected Option 1 (auto-detection enabled):**
-```bash
-touch "$PROJECT_ROOT/.claude/calibrator/auto-detect.enabled"
-chmod 600 "$PROJECT_ROOT/.claude/calibrator/auto-detect.enabled"
-echo "📝 Auto pattern detection enabled"
-```
-
-**If user selected Option 2 (auto-detection disabled):**
-```bash
-rm -f "$PROJECT_ROOT/.claude/calibrator/auto-detect.enabled"
-echo "📝 Auto pattern detection disabled"
 ```
 
 ### Step 2-B: Update .gitignore (REQUIRED for Git projects)
@@ -323,8 +302,6 @@ English example:
 - .claude/calibrator/patterns.db created
 - .claude/skills/ directory created
 - .gitignore updated (if Git project)
-- Auto pattern detection: {enabled|disabled}
 
 You can now record mismatches with /calibrate.
-{If auto-detection enabled: Patterns will also be recorded automatically when fixing lint/format/type/build/test errors.}
 ```

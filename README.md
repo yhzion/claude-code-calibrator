@@ -10,28 +10,12 @@ A Claude Code plugin that learns from your corrections and applies them consiste
 
 ## Core Concept
 
-### Auto-Detection (Default)
-```
-Claude fixes lint/type/build/test error
-       ↓
-Pattern automatically recorded (no /calibrate needed)
-       ↓
-Same pattern repeats 2+ times
-       ↓
-Claude suggests: "💡 Pattern repeated 2x → /calibrate review"
-       ↓
-Promote to Skill with /calibrate review
-       ↓
-Claude automatically applies pattern going forward
-```
-
-### Manual Recording
 ```
 User requests Claude to correct output
        ↓
 Record mismatch with /calibrate
        ↓
-Detect when same pattern repeats
+Same pattern repeats 2+ times
        ↓
 Promote to Skill with /calibrate review
        ↓
@@ -81,63 +65,19 @@ Creates the Calibrator database and directory structure.
 1. **Confirmation:**
    - "Initialize Calibrator?" → [Yes, initialize] [Cancel]
 
-2. **Auto-Detection Option:**
-   - "Enable automatic pattern detection?" → [Yes (Recommended)] [No]
-   - When enabled: Patterns are automatically recorded when fixing lint/type/build/test errors
-
-3. **If Already Exists:**
+2. **If Already Exists:**
    - "Calibrator already exists" → [Keep] [Reinitialize (delete data)]
 
-4. **Completion:**
+3. **Completion:**
    ```
    ✅ Calibrator initialization complete
 
    - .claude/calibrator/patterns.db created
    - .claude/skills/ directory created
    - .gitignore updated (if Git project)
-   - Auto pattern detection: enabled
 
    You can now record mismatches with /calibrate.
-   Patterns will also be recorded automatically when fixing errors.
    ```
-
-</details>
-
----
-
-### Toggle Auto-Detection
-
-```bash
-/calibrate auto [on|off]
-```
-
-Enable or disable automatic pattern detection.
-
-<details>
-<summary>📖 Detailed Usage</summary>
-
-**Commands:**
-
-| Command | Description |
-|---------|-------------|
-| `/calibrate auto on` | Enable auto-detection (default) |
-| `/calibrate auto off` | Disable auto-detection |
-| `/calibrate auto` | Show current status |
-
-**When enabled, patterns are automatically recorded when fixing:**
-- Lint errors (ESLint, Prettier, Biome, etc.)
-- Type errors (TypeScript, Flow, etc.)
-- Build errors (Webpack, Vite, esbuild, etc.)
-- Test failures (Jest, Vitest, pytest, etc.)
-
-**Auto-detection notification:**
-```
-┌─ 🔄 Auto-Calibrate ──────────────────────────────┐
-│ Recorded: "TypeScript async/await handling"      │
-│ Category: missing | Occurrences: 2               │
-└──────────────────────────────────────────────────┘
-💡 Pattern repeated 2x → /calibrate review to promote to skill
-```
 
 </details>
 
@@ -328,7 +268,7 @@ Record your first mismatch with /calibrate.
 ### Edit Skills & Merge Patterns
 
 ```bash
-/calibrate refactor
+/calibrate refactor-skills
 ```
 
 Edit existing Skills, merge similar patterns, or remove duplicates.
@@ -444,9 +384,8 @@ Commands:
   /calibrate           Record an expectation mismatch
   /calibrate status    View statistics
   /calibrate review    Promote patterns to Skills
-  /calibrate refactor  Edit Skills and merge patterns
+  /calibrate refactor-skills  Edit Skills and merge patterns
   /calibrate delete    Delete promoted Skills
-  /calibrate auto      Toggle auto pattern detection (on/off)
   /calibrate reset     Delete all data
   /calibrate help      Show this help
 
@@ -631,8 +570,6 @@ The recommended workflow for effective calibration:
 - ✍️ Write **imperative instructions** - "Always do X" or "Never do Y"
 - 🔄 **Check `/calibrate status`** regularly to see accumulated patterns
 - 🚀 After promoting Skills, **restart Claude Code** to load them
-- 🤖 **Auto-detection** records patterns automatically when fixing errors - no manual `/calibrate` needed
-- ⚙️ Use `/calibrate auto off` if you prefer **manual-only** recording
 
 ## How It Works
 
@@ -646,7 +583,6 @@ The recommended workflow for effective calibration:
 | File | Purpose |
 |------|---------|
 | `.claude/calibrator/patterns.db` | SQLite DB (`observations`, `patterns`, `schema_version` tables) |
-| `.claude/calibrator/auto-detect.enabled` | Flag file for auto-detection (exists = enabled) |
 | `.claude/skills/*/SKILL.md` | Promoted Skills |
 
 ## Security Considerations

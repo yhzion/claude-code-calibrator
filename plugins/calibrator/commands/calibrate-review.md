@@ -98,7 +98,7 @@ fi
 # ============================================================================
 
 # Path traversal protection: validate that a path is under allowed directory
-# (consistent with calibrate-delete.md and calibrate-refactor.md)
+# (consistent with calibrate-delete.md and calibrate-refactor-skills.md)
 validate_skill_path() {
   local path="$1"
   local resolved_path resolved_base

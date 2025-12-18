@@ -1,34 +1,19 @@
 {
   "name": "calibrator",
   "version": "0.2.0",
-  "description": "Claude Code expectation mismatch correction plugin with auto error detection",
+  "description": "Claude Code expectation mismatch correction plugin",
   "commands": [
     "./commands/calibrate.md",
     "./commands/calibrate-init.md",
     "./commands/calibrate-review.md",
     "./commands/calibrate-status.md",
     "./commands/calibrate-reset.md",
-    "./commands/calibrate-auto.md",
-    "./commands/calibrate-refactor.md",
+    "./commands/calibrate-refactor-skills.md",
     "./commands/calibrate-delete.md",
     "./commands/calibrate-help.md"
   ],
   "skills": [
-    "./skills/auto-calibrate.md",
     "./skills/prompt-skill-promotion.md"
   ],
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/detect-errors.sh"
-          }
-        ]
-      }
-    ]
-  },
   "mcpServers": {}
 }

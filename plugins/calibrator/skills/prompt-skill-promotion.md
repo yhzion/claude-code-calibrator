@@ -1,15 +1,15 @@
 ---
 name: prompt-skill-promotion
-description: When a repeated error pattern reaches CALIBRATOR_THRESHOLD+ occurrences (default 2), prompt the user to promote it to a skill. Activates after auto-calibrate skill records a pattern that reaches the threshold.
+description: When a manually recorded pattern reaches CALIBRATOR_THRESHOLD+ occurrences (default 2), prompt the user to promote it to a skill. Activates after /calibrate command records a pattern that reaches the threshold.
 ---
 
 # Skill Promotion Prompt
 
-This skill activates when a pattern recorded by the `auto-calibrate` skill reaches the promotion threshold (count >= CALIBRATOR_THRESHOLD, default 2) and hasn't been promoted or dismissed yet.
+This skill activates when a pattern recorded via `/calibrate` command reaches the promotion threshold (count >= CALIBRATOR_THRESHOLD, default 2) and hasn't been promoted or dismissed yet.
 
 ## Activation Condition
 
-Activate this skill when the auto-calibrate skill outputs a promotion suggestion:
+Activate this skill when the /calibrate command outputs a promotion suggestion:
 ```
 💡 Pattern repeated {count}x → /calibrate review to promote to skill
 ```

@@ -1,10 +1,10 @@
 ---
-name: calibrate refactor
+name: calibrate refactor-skills
 description: Edit existing Skills and merge similar patterns
 allowed-tools: Bash(git:*), Bash(sqlite3:*), Bash(test:*), Bash(sed:*), Bash(printf:*), Bash(echo:*), Bash(awk:*), Bash(mktemp:*), Bash(basename:*), Bash(rm:*), Bash(mv:*), Bash(realpath:*), Bash(tr:*)
 ---
 
-# /calibrate refactor
+# /calibrate refactor-skills
 
 Edit existing Skills, merge similar patterns, or remove duplicates.
 

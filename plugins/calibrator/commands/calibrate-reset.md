@@ -109,7 +109,6 @@ This will delete EVERYTHING:
 - {TOTAL_OBS} observations
 - {TOTAL_PATTERNS} patterns
 - {SKILL_COUNT} generated skills (.claude/skills/calibrator-*.md)
-- Auto-detect flag file
 - Calibrator directory
 
 ⚠️ This action cannot be undone!
@@ -163,9 +162,6 @@ rm -rf "$PROJECT_ROOT/.claude/skills/calibrator-"* 2>/dev/null || true
 # Remove database file
 rm -f "$DB_PATH"
 
-# Remove auto-detect flag
-rm -f "$PROJECT_ROOT/.claude/calibrator/auto-detect.enabled"
-
 # Remove calibrator directory if empty
 rmdir "$PROJECT_ROOT/.claude/calibrator" 2>/dev/null || true
 ```
@@ -191,7 +187,6 @@ Start new records with /calibrate.
 - Observations: deleted
 - Patterns: deleted
 - Skills: {SKILL_COUNT} files deleted
-- Auto-detect: disabled
 
 Run /calibrate init to start fresh.
 ```

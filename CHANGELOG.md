@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- Auto-detection hook (`PostToolUse` hook for Bash error detection)
+- Auto-calibrate skill (`auto-calibrate.md`)
+- `/calibrate auto` command for toggling auto-detection
+- `auto-detect.enabled` flag file support
 - Locale/i18n support (English-only for now to reduce error surface)
 - `config.json`/`jq` dependency (defaults are now fixed to reduce runtime variability)
 
