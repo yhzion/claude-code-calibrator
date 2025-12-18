@@ -24,22 +24,22 @@ Claude automatically applies the rule going forward
 
 First, add the plugin to your local marketplace, and then install it:
 ```bash
-/plugin marketplace add yhzion/skillfy
-/plugin install skillfy@yhzion-skillfy
+/plugin marketplace add https://github.com/yhzion/claude-code-skillfy.git
+/plugin install skillfy@yhzion-claude-code-skillfy
 ```
 
 ### Update
 
 ```bash
-/plugin marketplace update yhzion-skillfy
+/plugin marketplace update yhzion-claude-code-skillfy
 ```
 
 ### Uninstall
 
 To completely remove the plugin, first uninstall it and then remove it from the marketplace:
 ```bash
-/plugin uninstall skillfy@yhzion-skillfy
-/plugin marketplace remove yhzion-skillfy
+/plugin uninstall skillfy@yhzion-claude-code-skillfy
+/plugin marketplace remove yhzion-claude-code-skillfy
 ```
 
 ## Usage
