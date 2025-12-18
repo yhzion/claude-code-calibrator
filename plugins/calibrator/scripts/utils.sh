@@ -6,10 +6,28 @@
 # Version Comparison
 # ============================================================================
 
-# POSIX-compatible version comparison
-# Returns 0 (true/success) if $1 >= $2, 1 (false/failure) otherwise
-# Usage: version_ge "3.24.0" "3.24.0" && echo "yes"
+# POSIX-compatible semantic version comparison
+# Compares two version strings (e.g., "3.24.0" vs "3.20.0")
+#
+# Arguments:
+#   $1 - Version to check (e.g., "3.24.0")
+#   $2 - Minimum required version (e.g., "3.20.0")
+#
+# Returns:
+#   0 (success/true)  - if $1 >= $2
+#   1 (failure/false) - if $1 < $2
+#
+# Examples:
+#   version_ge "3.24.0" "3.20.0"  # returns 0 (true: 3.24.0 >= 3.20.0)
+#   version_ge "3.24.0" "3.24.0"  # returns 0 (true: equal versions)
+#   version_ge "3.20.0" "3.24.0"  # returns 1 (false: 3.20.0 < 3.24.0)
+#
+# Usage in conditionals:
+#   if version_ge "$VERSION" "3.24.0"; then echo "OK"; fi
+#
 version_ge() {
+  # Note: Arguments are swapped in awk to simplify comparison logic
+  # awk reads $2 first (min version), then $1 (actual version)
   printf '%s\n%s' "$2" "$1" | awk -F. '
     NR==1 { split($0,a,"."); next }
     NR==2 { split($0,b,".")

@@ -282,36 +282,38 @@ fi
 # First ensure parent directory exists
 mkdir -p "$SKILL_OUTPUT_PATH"
 
-# Validate skill path before creation (path traversal protection)
-CANDIDATE_PATH="$SKILL_OUTPUT_PATH/$SKILL_NAME"
-if ! validate_skill_path "$CANDIDATE_PATH"; then
-  echo "❌ Error: Invalid skill path detected (potential path traversal)"
-  exit 1
-fi
+# Configurable max attempts (environment variable or default)
+MAX_SKILL_NAME_ATTEMPTS="${CALIBRATOR_MAX_NAME_ATTEMPTS:-100}"
 
 BASE_SKILL_NAME="$SKILL_NAME"
 SUFFIX=0
-MAX_ATTEMPTS=100
 SKILL_DIR=""
 
-while [ $SUFFIX -le $MAX_ATTEMPTS ]; do
+while [ $SUFFIX -le $MAX_SKILL_NAME_ATTEMPTS ]; do
   if [ $SUFFIX -eq 0 ]; then
     CURRENT_NAME="$BASE_SKILL_NAME"
   else
     CURRENT_NAME="${BASE_SKILL_NAME}-${SUFFIX}"
   fi
 
+  # Validate CURRENT path right before creation (prevents TOCTOU race condition)
+  CURRENT_PATH="$SKILL_OUTPUT_PATH/$CURRENT_NAME"
+  if ! validate_skill_path "$CURRENT_PATH"; then
+    echo "❌ Error: Invalid skill path detected (potential path traversal)"
+    exit 1
+  fi
+
   # mkdir (without -p) fails if directory exists - atomic check+create
-  if mkdir "$SKILL_OUTPUT_PATH/$CURRENT_NAME" 2>/dev/null; then
+  if mkdir "$CURRENT_PATH" 2>/dev/null; then
     SKILL_NAME="$CURRENT_NAME"
-    SKILL_DIR="$SKILL_OUTPUT_PATH/$SKILL_NAME"
+    SKILL_DIR="$CURRENT_PATH"
     break
   fi
   SUFFIX=$((SUFFIX + 1))
 done
 
 if [ -z "$SKILL_DIR" ]; then
-  echo "❌ Error: Failed to generate unique skill name after $MAX_ATTEMPTS attempts"
+  echo "❌ Error: Failed to generate unique skill name after $MAX_SKILL_NAME_ATTEMPTS attempts"
   exit 1
 fi
 

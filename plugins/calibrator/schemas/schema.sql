@@ -20,8 +20,8 @@ CREATE TABLE IF NOT EXISTS patterns (
   count       INTEGER DEFAULT 1 CHECK(count >= 1),
   first_seen  DATETIME DEFAULT CURRENT_TIMESTAMP,
   last_seen   DATETIME DEFAULT CURRENT_TIMESTAMP,
-  promoted    BOOLEAN DEFAULT FALSE,
-  dismissed   BOOLEAN DEFAULT FALSE,  -- User declined promotion (won't ask again)
+  promoted    INTEGER NOT NULL DEFAULT 0 CHECK(promoted IN (0, 1)),
+  dismissed   INTEGER NOT NULL DEFAULT 0 CHECK(dismissed IN (0, 1)),  -- User declined promotion (won't ask again)
   skill_path  TEXT,
   UNIQUE(situation, instruction)
 );
@@ -44,6 +44,10 @@ CREATE INDEX IF NOT EXISTS idx_patterns_dismissed ON patterns(dismissed);
 
 -- Composite index for UPSERT conflict detection (critical for performance)
 CREATE INDEX IF NOT EXISTS idx_patterns_situation_instruction ON patterns(situation, instruction);
+
+-- Composite index for review query optimization
+-- Optimizes: WHERE count >= N AND promoted = 0 AND (dismissed = 0 OR dismissed IS NULL)
+CREATE INDEX IF NOT EXISTS idx_patterns_review ON patterns(promoted, dismissed, count DESC);
 
 -- ============================================================================
 -- Migration Instructions (v1.0 → v1.1)

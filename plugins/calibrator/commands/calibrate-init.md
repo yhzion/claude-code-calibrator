@@ -143,6 +143,9 @@ CREATE INDEX IF NOT EXISTS idx_patterns_count ON patterns(count DESC);
 CREATE INDEX IF NOT EXISTS idx_patterns_promoted ON patterns(promoted);
 CREATE INDEX IF NOT EXISTS idx_patterns_dismissed ON patterns(dismissed);
 CREATE INDEX IF NOT EXISTS idx_patterns_situation_instruction ON patterns(situation, instruction);
+
+-- Composite index for review query optimization
+CREATE INDEX IF NOT EXISTS idx_patterns_review ON patterns(promoted, dismissed, count DESC);
 SCHEMA_EOF
 then
   rm -f "$PROJECT_ROOT/.claude/calibrator/patterns.db"

@@ -66,30 +66,35 @@ fi
 # ============================================
 # Step 4: Classify command type
 # ============================================
+# Uses case statement for security (no command injection) and performance (no subprocess)
 classify_command() {
   local cmd="$1"
+  # Convert to lowercase for case-insensitive matching
+  local cmd_lower
+  cmd_lower=$(printf '%s' "$cmd" | tr '[:upper:]' '[:lower:]')
 
-  # Lint/Format
-  if echo "$cmd" | grep -qiE '(eslint|prettier|biome|stylelint|pylint|flake8|rubocop|golint|clippy|oxlint)'; then
-    echo "lint"
-  # Type Check
-  elif echo "$cmd" | grep -qiE '(tsc|typescript|mypy|flow|typecheck)'; then
-    echo "typecheck"
-  # Build
-  elif echo "$cmd" | grep -qiE '(build|webpack|vite|esbuild|rollup|turbo|cargo build|go build|make)'; then
-    echo "build"
-  # Test
-  elif echo "$cmd" | grep -qiE '(test|jest|vitest|pytest|mocha|cargo test|go test)'; then
-    echo "test"
-  # Package
-  elif echo "$cmd" | grep -qiE '(npm|yarn|pnpm|pip|cargo|go mod)'; then
-    echo "package"
-  # Git
-  elif echo "$cmd" | grep -qE '^git '; then
-    echo "git"
-  else
-    echo "other"
-  fi
+  case "$cmd_lower" in
+    # Lint/Format
+    *eslint*|*prettier*|*biome*|*stylelint*|*pylint*|*flake8*|*rubocop*|*golint*|*clippy*|*oxlint*)
+      echo "lint" ;;
+    # Type Check
+    *tsc*|*typescript*|*mypy*|*flow*|*typecheck*)
+      echo "typecheck" ;;
+    # Build (check before test because some commands contain both)
+    *webpack*|*vite*|*esbuild*|*rollup*|*turbo*|*"cargo build"*|*"go build"*|*make*)
+      echo "build" ;;
+    # Test
+    *jest*|*vitest*|*pytest*|*mocha*|*"cargo test"*|*"go test"*|*test*)
+      echo "test" ;;
+    # Package
+    *npm*|*yarn*|*pnpm*|*pip*|*cargo*|*"go mod"*)
+      echo "package" ;;
+    # Git
+    "git "*|*" git "*)
+      echo "git" ;;
+    *)
+      echo "other" ;;
+  esac
 }
 
 ERROR_TYPE=$(classify_command "$command")
@@ -100,6 +105,7 @@ ERROR_TYPE=$(classify_command "$command")
 output="$stdout$stderr"
 
 # Extract first meaningful error line as situation
+# Uses printf '%s' for safe string handling (no command injection)
 extract_situation() {
   local cmd="$1"
   local out="$2"
@@ -107,15 +113,15 @@ extract_situation() {
 
   # Get first error/warning line (max 200 chars)
   local first_error
-  first_error=$(echo "$out" | grep -iE '(error|Error|ERROR|warning|Warning|WARN|fail|FAIL)' | head -1 | cut -c1-200)
+  first_error=$(printf '%s' "$out" | grep -iE '(error|Error|ERROR|warning|Warning|WARN|fail|FAIL)' | head -1 | cut -c1-200)
 
   if [ -z "$first_error" ]; then
     # Fallback: first non-empty line
-    first_error=$(echo "$out" | grep -v '^$' | head -1 | cut -c1-200)
+    first_error=$(printf '%s' "$out" | grep -v '^$' | head -1 | cut -c1-200)
   fi
 
   # Create situation description
-  echo "${err_type}: ${first_error:-Unknown error}" | cut -c1-500
+  printf '%s' "${err_type}: ${first_error:-Unknown error}" | cut -c1-500
 }
 
 SITUATION=$(extract_situation "$command" "$output" "$ERROR_TYPE")
@@ -152,12 +158,14 @@ SAFE_SITUATION=$(escape_sql "$SITUATION")
 # Record to observations table only (frequency tracking)
 # NOTE: patterns table is managed by auto-calibrate.md skill which has
 # better understanding of the actual fix and can generate meaningful instructions
-if ! sqlite3 "$DB_PATH" <<SQL 2>/dev/null
+DB_ERROR=""
+if ! DB_ERROR=$(sqlite3 "$DB_PATH" <<SQL 2>&1
 INSERT INTO observations (category, situation, expectation)
 VALUES ('$SAFE_CATEGORY', '$SAFE_SITUATION', 'Detected by hook - see auto-calibrate skill for learned pattern');
 SQL
-then
-  # DB error - exit silently
+); then
+  # Log DB error to stderr for debugging (hook will still succeed)
+  echo "[calibrator-hook] Warning: Failed to record observation: $DB_ERROR" >&2
   exit 0
 fi
 
